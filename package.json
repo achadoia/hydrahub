@@ -1,0 +1,47 @@
+{
+  "name": "hydrahub",
+  "productName": "HydraHub",
+  "version": "1.0.0",
+  "description": "HydraHub — tutoriais, links e instalador de jogos recompilados, tudo em um só lugar.",
+  "author": "HydraHub",
+  "license": "MIT",
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "catalog": "node scraper/build-catalog.mjs",
+    "catalog:quick": "node scraper/build-catalog.mjs --quick",
+    "dist": "electron-builder --win nsis portable"
+  },
+  "dependencies": {
+    "extract-zip": "^2.0.1"
+  },
+  "devDependencies": {
+    "@fontsource/montserrat": "^5.0.0",
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.hydrahub.app",
+    "productName": "HydraHub",
+    "directories": { "output": "dist", "buildResources": "build" },
+    "files": [
+      "src/**/*",
+      "catalog/catalog.json",
+      "package.json",
+      "!**/*.map"
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [{ "target": "nsis", "arch": ["x64"] }, { "target": "portable", "arch": ["x64"] }]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "HydraHub-Setup-${version}.exe",
+      "shortcutName": "HydraHub",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico"
+    },
+    "portable": { "artifactName": "HydraHub-${version}-portable.exe" }
+  }
+}

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' https: data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'; frame-src https://www.youtube-nocookie.com https://www.youtube.com; connect-src 'self'">
+  <title>HydraHub</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="neo.css">
+</head>
+<body>
+  <div class="titlebar"><span class="drag"></span></div>
+
+  <aside class="sidebar">
+    <a class="brand" href="#/inicio">
+      <img src="assets/logo-128.png" alt="">
+      <span><b>Hydra</b><i>Hub</i></span>
+    </a>
+    <nav id="nav"></nav>
+    <div class="side-foot">
+      <img src="assets/logo-128.png" alt="">
+      <div><b>HydraHub</b><small>JOGOS, TUTORIAIS<br>E MAIS.</small></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <label class="search">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="search" type="search" placeholder="Buscar jogos, tutoriais, links..." autocomplete="off" spellcheck="false">
+        <kbd>Ctrl K</kbd>
+      </label>
+      <div id="search-results" class="search-results" hidden></div>
+      <div class="top-actions">
+        <button id="btn-downloads" class="icon-btn" title="Downloads"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 19h16"/></svg><span class="dot" hidden></span></button>
+        <button id="btn-refresh" class="icon-btn" title="Atualizar catálogo"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg></button>
+      </div>
+    </header>
+    <section id="view" class="view"></section>
+  </main>
+
+  <div id="downloads-panel" class="downloads-panel" hidden></div>
+  <div id="toasts" class="toasts"></div>
+  <div id="lightbox" class="lightbox" hidden></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

@@ -21,7 +21,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Gerar catálogo (recomp.gg + AllRecomps + Recompiled Games + GithubLauncher)
+      - name: Gerar catálogo (recomp.gg + AllRecomps + Recompiled Games + WASM Arcade + GithubLauncher)
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: node scraper/build-catalog.mjs

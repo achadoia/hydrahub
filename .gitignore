@@ -2,3 +2,4 @@ node_modules/
 dist/
 catalog/build.log
 *.log
+src/main/google-oauth.json

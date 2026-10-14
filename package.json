@@ -1,7 +1,7 @@
 {
   "name": "hydrahub",
   "productName": "HydraHub",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "HydraHub — tutoriais, links e instalador de jogos recompilados, tudo em um só lugar.",
   "author": "HydraHub",
   "license": "MIT",
@@ -10,7 +10,7 @@
     "start": "electron .",
     "catalog": "node scraper/build-catalog.mjs",
     "catalog:quick": "node scraper/build-catalog.mjs --quick",
-    "dist": "electron-builder --win nsis portable"
+    "dist": "electron-builder --win nsis"
   },
   "dependencies": {
     "extract-zip": "^2.0.1"
@@ -23,7 +23,10 @@
   "build": {
     "appId": "com.hydrahub.app",
     "productName": "HydraHub",
-    "directories": { "output": "dist", "buildResources": "build" },
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
     "files": [
       "src/**/*",
       "catalog/catalog.json",
@@ -32,16 +35,32 @@
     ],
     "win": {
       "icon": "build/icon.ico",
-      "target": [{ "target": "nsis", "arch": ["x64"] }, { "target": "portable", "arch": ["x64"] }]
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
       "artifactName": "HydraHub-Setup-${version}.exe",
       "shortcutName": "HydraHub",
+      "uninstallDisplayName": "HydraHub",
       "installerIcon": "build/icon.ico",
-      "uninstallerIcon": "build/icon.ico"
-    },
-    "portable": { "artifactName": "HydraHub-${version}-portable.exe" }
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "installerSidebar": "build/installerSidebar.bmp",
+      "uninstallerSidebar": "build/uninstallerSidebar.bmp",
+      "installerHeader": "build/installerHeader.bmp",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false
+    }
   }
 }

@@ -5,6 +5,22 @@
 
 O HydraHub é um app desktop (Electron) no estilo do Hydra, feito só para **recomps, decomps e ports**: ele junta o catálogo de cinco fontes, mostra **um jogo por página** (sem repetir), com tutorial em português, imagens, vídeos e o **botão Instalar** que baixa a release oficial do GitHub, extrai e deixa pronto para jogar.
 
+## Baixar
+
+Pegue o **`HydraHub-Setup-x.y.z.exe`** na página de [Releases](https://github.com/achadoia/hydrahub/releases/latest) e instale. O Windows pode mostrar o aviso do SmartScreen (app sem assinatura): clique em *Mais informações → Executar assim mesmo*.
+
+**Login com Google é opcional.** O HydraHub abre e funciona inteiro sem conta; se quiser, use o botão *Entrar* no topo ou em Configurações.
+
+## Prints
+
+<p align="center"><img src="docs/prints/inicio.jpg" alt="Tela inicial do HydraHub"></p>
+
+| Catálogo de jogos | Página do jogo |
+|---|---|
+| <img src="docs/prints/jogos.jpg" alt="Catálogo de jogos recompilados"> | <img src="docs/prints/jogo.jpg" alt="Página do Zelda: Majora's Mask com botão Instalar"> |
+| **Emulador Frame Perfect** | **Tutoriais** |
+| <img src="docs/prints/emulador.jpg" alt="Emulador Frame Perfect instalado pelo HydraHub"> | <img src="docs/prints/tutoriais.jpg" alt="Tutoriais em português"> |
+
 ## Fontes do catálogo
 
 | Fonte | O que vem dela |
@@ -26,7 +42,7 @@ O catálogo (`catalog/catalog.json`) é regenerado **todo dia** pelo GitHub Acti
 npm install
 npm start                 # abre o app
 npm run catalog           # regenera o catálogo localmente
-npm run dist              # gera dist/HydraHub-Setup-x.y.z.exe e a versão portable
+npm run dist              # gera dist/HydraHub-Setup-x.y.z.exe (só instalador)
 ```
 
 ## Aviso

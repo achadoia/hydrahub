@@ -357,6 +357,47 @@ async function fromWasmArcade() {
   return out;
 }
 
+// ---------- Emuladores com download direto (fora do GitHub) ----------
+// Frame Perfect: emulador arcade com rollback netcode; a API oficial dá a versão e os links.
+async function fromFramePerfect() {
+  console.log('> frameperfect.cc');
+  const api = 'https://www.frameperfect.cc/api/app/version/';
+  const v = await getJson(api);
+  if (!v?.full_download_url) return [];
+  const file = (url, size, label) => (url ? { name: decodeURIComponent(url.split('/').pop()), url, size: size || 0, label } : null);
+  console.log(`  ok: v${v.latest_version}`);
+  return [{
+    title: 'Frame Perfect', platforms: ['arcade'], genres: ['emulador', 'luta'], category: 'emulador',
+    cover: 'assets/covers/frameperfect.jpg', backdrop: 'assets/covers/frameperfect-site-1.jpg',
+    // prints do próprio frameperfect.cc (vídeo do YouTube por busca não acertava o emulador)
+    screenshots: [1, 2, 3, 4, 5, 6].map((n) => `assets/covers/frameperfect-site-${n}.jpg`),
+    noVideos: true,
+    description: 'Emulador retrô brasileiro com rollback netcode: jogue clássicos de luta dos anos 90 online sem lag, com salas ranqueadas, treino offline, filtro CRT e detecção automática de controles arcade e USB. Roda The King of Fighters 2002 e 98, Real Bout Fatal Fury, Street Fighter II (CE e Super Turbo), Street Fighter Alpha 2 e Vampire Savior.',
+    projects: [{ name: 'Frame Perfect', home: 'https://www.frameperfect.cc/', method: 'emulator', source: 'frameperfect' }],
+    ways: [{
+      kind: 'install', url: 'https://www.frameperfect.cc/', needs: 'unknown', systems: ['windows'], project: 'Frame Perfect',
+      release: { tag: `v${v.latest_version}`, url: 'https://www.frameperfect.cc/' },
+      direct: {
+        api, version: v.latest_version, sha256: v.sha256 || null,
+        exeHint: ['FramePerfect.exe', 'RbfLauncher.exe'],
+        files: [
+          file(v.full_download_url, v.full_file_size_bytes, 'Pacote portátil (.zip)'),
+          file(v.installer_download_url || v.exe_download_url, v.installer_file_size_bytes, 'Instalador (.exe)'),
+          file(v.installer_win7_download_url, v.installer_win7_file_size_bytes, 'Instalador Windows 7 (.exe)'),
+        ].filter(Boolean),
+      },
+      steps: [], stepsPt: null, source: 'frameperfect',
+      stepsFixedPt: [
+        'Clique em <b>Instalar</b>: o HydraHub baixa o pacote portátil oficial (.zip) direto do frameperfect.cc e extrai pra você.',
+        'Clique em <b>Jogar</b> pra abrir o launcher (RbfLauncher / FramePerfect.exe). As próximas versões se atualizam sozinhas pelo updater do próprio Frame Perfect.',
+        'Crie sua conta no launcher pra entrar nas salas online e nas partidas ranqueadas.',
+        'Prefere instalar no Windows com atalhos? Use o botão <b>Instalador (.exe)</b> em Downloads, logo abaixo.',
+      ],
+    }],
+    links: [{ name: 'Frame Perfect', url: 'https://www.frameperfect.cc/' }],
+  }];
+}
+
 // ---------- Junção sem repetir ----------
 function slugify(t) { return titleKey(t).replace(/\s+/g, '-') || 'jogo'; }
 
@@ -367,7 +408,7 @@ function merge(sources) {
 
   const attach = (g, item) => {
     for (const p of item.platforms || []) if (p && !g.platforms.includes(p)) g.platforms.push(p);
-    for (const k of ['year', 'cover', 'backdrop', 'wiki', 'icon']) if (!g[k] && item[k]) g[k] = item[k];
+    for (const k of ['year', 'cover', 'backdrop', 'wiki', 'icon', 'category', 'noVideos']) if (!g[k] && item[k]) g[k] = item[k];
     if (!g.description && item.description) g.description = item.description;
     if (!g.screenshots.length && item.screenshots?.length) g.screenshots = item.screenshots;
     for (const a of item.aliases || []) if (!g.aliases.includes(a)) g.aliases.push(a);
@@ -418,7 +459,7 @@ function merge(sources) {
     g.kinds = [...kinds];
     g.stars = Math.max(0, ...g.projects.map((p) => p.stars || 0));
     g.videos = g.videos.slice(0, 8);
-    g.sources = [...new Set(g.links.map((l) => l.name).filter((n) => ['recomp.gg', 'AllRecomps', 'Recompiled Games', 'GithubLauncher', 'WASM Arcade'].includes(n)))];
+    g.sources = [...new Set(g.links.map((l) => l.name).filter((n) => ['recomp.gg', 'AllRecomps', 'Recompiled Games', 'GithubLauncher', 'WASM Arcade', 'Frame Perfect'].includes(n)))];
     // jogo instalável primeiro, depois navegador; dentro disso, os mais populares
     g.ways.sort((a, b) => ({ install: 0, browser: 1, files: 2, source: 3 }[a.kind] ?? 4) - ({ install: 0, browser: 1, files: 2, source: 3 }[b.kind] ?? 4));
   }
@@ -463,7 +504,7 @@ const VID_CACHE = path.join(ROOT, 'catalog', 'videos.json');
 async function findVideos(games) {
   let cache = {};
   try { cache = JSON.parse(await fs.readFile(VID_CACHE, 'utf8')); } catch {}
-  const todo = games.filter((g) => g.playable && !cache[g.id]).slice(0, QUICK ? 5 : 600);
+  const todo = games.filter((g) => g.playable && !g.noVideos && !cache[g.id]).slice(0, QUICK ? 5 : 600);
   if (todo.length) console.log(`> buscando vídeos no YouTube pra ${todo.length} jogos`);
   await pool(todo, 3, async (g) => {
     const kind = g.kinds.includes('install') ? 'recomp pc' : 'browser';
@@ -492,7 +533,7 @@ async function findVideos(games) {
     await sleep(300);
   });
   await fs.writeFile(VID_CACHE, JSON.stringify(cache));
-  for (const g of games) for (const v of cache[g.id] || []) if (!g.videos.some((x) => x.youtubeId === v.youtubeId)) g.videos.push({ ...v, from: 'youtube' });
+  for (const g of games) for (const v of (g.noVideos ? [] : cache[g.id] || [])) if (!g.videos.some((x) => x.youtubeId === v.youtubeId)) g.videos.push({ ...v, from: 'youtube' });
 }
 
 // ---------- Links de navegador: testa se ainda estão no ar ----------
@@ -528,10 +569,10 @@ async function checkLinks(games) {
 
 // ---------- main ----------
 const t0 = Date.now();
-const results = await Promise.allSettled([fromRecompGG(), fromAllRecomps(), fromRecompiledGames(), fromGithubLauncher(), fromWasmArcade()]);
-const [rgg, ar, rcg, gl, wa] = results.map((r) => (r.status === 'fulfilled' ? r.value : (console.warn(r.reason), [])));
+const results = await Promise.allSettled([fromRecompGG(), fromAllRecomps(), fromRecompiledGames(), fromGithubLauncher(), fromWasmArcade(), fromFramePerfect()]);
+const [rgg, ar, rcg, gl, wa, fp] = results.map((r) => (r.status === 'fulfilled' ? r.value : (console.warn(r.reason), [])));
 // ordem importa: recomp.gg (mais rico) define o jogo; os outros completam
-const games = merge([rgg, gl, ar, rcg, wa]);
+const games = merge([rgg, gl, ar, rcg, wa, fp]);
 await translateSteps(games);
 await findVideos(games);
 await checkLinks(games);
@@ -546,7 +587,7 @@ if (previous && games.length < previous.games.length * 0.6) {
 const catalog = {
   version: 1,
   generatedAt: new Date().toISOString(),
-  counts: { games: games.length, playable: games.filter((g) => g.playable).length, browserOnline: games.filter((g) => g.browserOnline).length, recompgg: rgg.length, allrecomps: ar.length, recompiledgames: rcg.length, githublauncher: gl.length, wasmarcade: wa.length },
+  counts: { games: games.length, playable: games.filter((g) => g.playable).length, browserOnline: games.filter((g) => g.browserOnline).length, recompgg: rgg.length, allrecomps: ar.length, recompiledgames: rcg.length, githublauncher: gl.length, wasmarcade: wa.length, emuladores: fp.length },
   games,
 };
 await fs.writeFile(OUT, JSON.stringify(catalog));

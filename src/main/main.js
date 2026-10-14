@@ -75,6 +75,7 @@ function createWindow() {
       const wait = (ms) => new Promise((r) => setTimeout(r, ms));
       await wait(3500);
       for (const [i, r] of routes.split(',').entries()) {
+        if (r.startsWith('wait:')) { await wait(+r.slice(5) * 1000); continue; }
         if (r.startsWith('js:')) { console.log('JS>', JSON.stringify(await win.webContents.executeJavaScript(r.slice(3)))); continue; }
         await win.webContents.executeJavaScript(`location.hash=${JSON.stringify(r)}`);
         await wait(4000);
@@ -164,6 +165,25 @@ ipcMain.handle('github:releases', async (_e, repo) => {
   }
 });
 
+// ---------- downloads diretos (emuladores fora do GitHub) ----------
+ipcMain.handle('direct:version', async (_e, api) => {
+  if (!/^https:\/\/[^/]+\//.test(api || '')) return { ok: false };
+  try {
+    const v = await fetchJson(api, {}, 10000);
+    const file = (url, size, label) => (url ? { name: decodeURIComponent(url.split('/').pop()), url, size: size || 0, label } : null);
+    return {
+      ok: true, version: v.latest_version, sha256: v.sha256 || null, changelog: v.changelog || [],
+      files: [
+        file(v.full_download_url, v.full_file_size_bytes, 'Pacote portátil (.zip)'),
+        file(v.installer_download_url || v.exe_download_url, v.installer_file_size_bytes, 'Instalador (.exe)'),
+        file(v.installer_win7_download_url, v.installer_win7_file_size_bytes, 'Instalador Windows 7 (.exe)'),
+      ].filter(Boolean),
+    };
+  } catch (e) {
+    return { ok: false, message: e.message };
+  }
+});
+
 // ---------- downloads e instalação ----------
 const active = new Map(); // gameId -> { controller }
 
@@ -208,7 +228,12 @@ async function walkFiles(dir, depth = 0, acc = []) {
   return acc;
 }
 
-ipcMain.handle('game:install', async (_e, { gameId, title, repo, asset, tag }) => {
+const preferExe = (files, hints = []) => {
+  for (const h of hints) { const f = files.find((x) => path.basename(x).toLowerCase() === h.toLowerCase()); if (f) return f; }
+  return null;
+};
+
+ipcMain.handle('game:install', async (_e, { gameId, title, repo, asset, tag, exeHint }) => {
   if (active.has(gameId)) return { ok: false, error: 'Já está baixando.' };
   const controller = new AbortController();
   active.set(gameId, { controller });
@@ -233,10 +258,10 @@ ipcMain.handle('game:install', async (_e, { gameId, title, repo, asset, tag }) =
     }
     if (!exe) {
       const files = await walkFiles(dir);
-      exe = rankExecutables(files, { repo, title, platform: process.platform })[0] || null;
+      exe = preferExe(files, exeHint) || rankExecutables(files, { repo: repo || '', title, platform: process.platform })[0] || null;
     }
     const installed = getInstalled();
-    installed[gameId] = { title, repo, tag, dir, exe, asset: asset.name, installedAt: new Date().toISOString() };
+    installed[gameId] = { title, repo, tag, dir, exe, exeHint: exeHint || null, asset: asset.name, installedAt: new Date().toISOString() };
     writeJson(INSTALLED_FILE, installed);
     send('download:progress', { gameId, phase: 'done', exe, dir });
     return { ok: true, exe, dir };
@@ -267,7 +292,7 @@ ipcMain.handle('game:launch', async (_e, gameId) => {
   let exe = info.exe;
   if (!exe || !fs.existsSync(exe)) {
     const files = await walkFiles(info.dir);
-    exe = rankExecutables(files, { repo: info.repo, title: info.title, platform: process.platform })[0];
+    exe = preferExe(files, info.exeHint || []) || rankExecutables(files, { repo: info.repo || '', title: info.title, platform: process.platform })[0];
   }
   if (!exe) { shell.openPath(info.dir); return { ok: false, error: 'Não achei o executável; abri a pasta do jogo.' }; }
   if (process.platform !== 'win32') await fsp.chmod(exe, 0o755).catch(() => {});

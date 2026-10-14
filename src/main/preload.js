@@ -5,6 +5,7 @@ const invoke = (ch) => (...args) => ipcRenderer.invoke(ch, ...args);
 contextBridge.exposeInMainWorld('hydra', {
   getCatalog: invoke('catalog:get'),
   releases: invoke('github:releases'),
+  directVersion: invoke('direct:version'),
   install: invoke('game:install'),
   cancel: invoke('game:cancel'),
   installed: invoke('game:installed'),

@@ -13,6 +13,7 @@ O HydraHub é um app desktop (Electron) no estilo do Hydra, feito só para **rec
 | [AllRecomps](https://allrecomps.com) | projetos por console, repositório oficial, sistemas suportados |
 | [Recompiled Games](https://recompiledgames.com) | ports que rodam no navegador |
 | [WASM Arcade](https://wasmarcade.com) | ports de PC em WebAssembly (GTA 5, GTA III, Vice City…). Fliperama e Flash ficam de fora |
+| [Frame Perfect](https://www.frameperfect.cc) | emulador arcade com rollback netcode, download direto pela API oficial |
 | [SirDiabo/GithubLauncher](https://github.com/SirDiabo/GithubLauncher) | lista de recomps de N64 do launcher |
 
 Tudo é unido por **repositório** e por **título normalizado** (sem acento, "Recompiled", numeral romano etc.), então cada jogo aparece uma vez só, com todos os projetos dentro.

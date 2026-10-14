@@ -15,7 +15,7 @@ const PLATFORMS = {
   'virtual-boy': 'Virtual Boy', mac: 'Mac', 'neo-geo': 'Neo Geo', 'apple-ii': 'Apple II', 'zx-spectrum': 'ZX Spectrum', msx: 'MSX',
 };
 const platName = (p) => PLATFORMS[p] || p.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-const METHOD = { recompilation: 'Recompilação', decompilation: 'Decompilação', reimplementation: 'Reimplementação', 'source port': 'Source port', port: 'Port', remake: 'Remake' };
+const METHOD = { emulator: 'Emulador', recompilation: 'Recompilação', decompilation: 'Decompilação', reimplementation: 'Reimplementação', 'source port': 'Source port', port: 'Port', remake: 'Remake' };
 const NEEDS = { nothing: 'Não precisa de nada', rom: 'Precisa da sua ROM', files: 'Precisa dos arquivos do jogo', unknown: 'Confira no passo a passo', game: 'Precisa do jogo original', instant: 'Joga na hora' };
 const fmtBytes = (n) => (!n ? '' : n > 1e9 ? `${(n / 1e9).toFixed(2)} GB` : n > 1e6 ? `${(n / 1e6).toFixed(1)} MB` : `${Math.round(n / 1e3)} KB`);
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }) : '');
@@ -72,6 +72,7 @@ function cover(g, { small } = {}) {
   const img = g.cover || g.icon;
   const inst = state.installed[g.id];
   const badges = [];
+  if (g.category === 'emulador') badges.push(`<span class="tag warn">${icon('chip')}Emulador</span>`);
   if (g.kinds?.includes('install')) badges.push(`<span class="tag cyan">${icon('download')}PC</span>`);
   if (g.kinds?.includes('browser') && g.browserOnline !== false) badges.push(`<span class="tag">${icon('browser')}Web</span>`);
   return `<a class="game-card" href="#/jogo/${g.id}" title="${esc(g.title)}">
@@ -153,6 +154,8 @@ function pageHome() {
       <div class="row-scroll">${state.games.filter((g) => g.playable && g.kinds.includes('install') && g.cover).slice(0, 16).map((g) => cover(g)).join('')}</div>
       <div class="section-head"><h2>Online agora no navegador</h2><a href="#/jogos?kind=browser">Ver todos ${icon('arrow')}</a></div>
       <div class="row-scroll">${state.games.filter((g) => g.kinds.includes('browser') && g.browserOnline && g.cover).slice(0, 16).map((g) => cover(g)).join('')}</div>
+      ${state.games.some((g) => g.category === 'emulador') ? `<div class="section-head"><h2>Emuladores</h2><a href="#/jogos?kind=emulator">Ver todos ${icon('arrow')}</a></div>
+      <div class="row-scroll">${state.games.filter((g) => g.category === 'emulador').map((g) => cover(g)).join('')}</div>` : ''}
       <div class="section-head"><h2>Tutoriais em destaque</h2><a href="#/tutoriais">Ver todos ${icon('arrow')}</a></div>
       <div class="tut-grid">${TUTORIALS.slice(0, 3).map(tutCard).join('')}</div>
     </div>
@@ -236,6 +239,7 @@ function applyFilters() {
     if (f.kind === 'install' && !g.kinds.includes('install')) return false;
     if (f.kind === 'browser' && !(g.kinds.includes('browser') && g.browserOnline !== false)) return false;
     if (f.kind === 'source' && g.playable) return false;
+    if (f.kind === 'emulator' && g.category !== 'emulador') return false;
     if (f.kind === 'installed' && !state.installed[g.id]) return false;
     if (f.platform && !g.platforms.includes(f.platform)) return false;
     if (words.length) {
@@ -260,7 +264,7 @@ function pageGames(arg) {
   const platCounts = {};
   for (const g of state.games) if (g.playable) for (const p of g.platforms) platCounts[p] = (platCounts[p] || 0) + 1;
   const plats = Object.entries(platCounts).sort((a, b) => b[1] - a[1]);
-  const kinds = [['playable', 'Jogáveis', 'gamepad'], ['install', 'Instalar no PC', 'download'], ['browser', 'Navegador (online)', 'browser'], ['source', 'Só código-fonte', 'github'], ['all', 'Todos', 'filter']];
+  const kinds = [['playable', 'Jogáveis', 'gamepad'], ['install', 'Instalar no PC', 'download'], ['browser', 'Navegador (online)', 'browser'], ['emulator', 'Emuladores', 'chip'], ['source', 'Só código-fonte', 'github'], ['all', 'Todos', 'filter']];
   view.innerHTML = `
     <div class="page-head"><div><h1>Jogos Recompilados</h1><p>Um jogo, uma página: juntamos os projetos de 5 fontes sem repetir nenhum.</p></div></div>
     <div class="filters">
@@ -292,7 +296,7 @@ function pageGames(arg) {
 
 // ---------- PÁGINA DO JOGO (tutorial completo) ----------
 function primaryInstallWay(g) {
-  return g.ways.find((w) => w.kind === 'install' && repoOf(w.repo || w.url)) || null;
+  return g.ways.find((w) => w.kind === 'install' && w.direct) || g.ways.find((w) => w.kind === 'install' && repoOf(w.repo || w.url)) || null;
 }
 function pageGame(id) {
   const g = G(id);
@@ -315,6 +319,7 @@ function pageGame(id) {
     return ['Este projeto ainda é só código-fonte: não há build pronta pra baixar.', 'Acompanhe o repositório; quando sair uma release, o HydraHub mostra o botão Instalar automaticamente.'];
   };
   const stepsHtml = (w) => {
+    if (w?.stepsFixedPt?.length) return `<ol class="steps">${w.stepsFixedPt.map((x) => `<li>${x}</li>`).join('')}</ol>`;
     if (w?.steps?.length) {
       return `<ol class="steps">${w.steps.map((s, i) => { const pt = w.stepsPt?.[i]; return `<li>${esc(pt || s)}${pt ? `<span class="orig">${esc(s)}</span>` : ''}</li>`; }).join('')}</ol>`;
     }
@@ -351,7 +356,7 @@ function pageGame(id) {
       ${desc ? `<p class="lead">${esc(desc)}</p>` : ''}
       ${sec('Antes de começar')}
       ${needsRom ? `<div class="callout warn">${icon('cartridge')}<p><b>Você precisa da sua cópia do jogo.</b> O HydraHub instala o recomp, mas não fornece ROM nem arquivos do jogo. Veja <a href="#/tutorial/dump-rom">como fazer o dump do seu cartucho ou disco</a>.</p></div>` : ''}
-      ${iw ? `<div class="callout">${icon('info')}<p><b>Requisitos:</b> placa de vídeo com Vulkan ou Direct3D 12 e o Visual C++ Redistributable. <a href="#/tutorial/requisitos">Veja o guia de preparação do PC</a>.</p></div>` : ''}
+      ${iw && !iw.direct ? `<div class="callout">${icon('info')}<p><b>Requisitos:</b> placa de vídeo com Vulkan ou Direct3D 12 e o Visual C++ Redistributable. <a href="#/tutorial/requisitos">Veja o guia de preparação do PC</a>.</p></div>` : ''}
       ${deadBrowser ? `<div class="callout warn off">${icon('alert')}<p><b>Versão de navegador fora do ar.</b> No último teste (${fmtDate(g.ways.find((w) => w.kind === 'browser').checkedAt)}) os links de navegador deste jogo não responderam. O HydraHub testa de novo todo dia.</p></div>` : ''}
       ${g.ways.filter((w) => w.externalHost).map((w) => `<div class="callout warn">${icon('alert')}<p><b>Roda num servidor de terceiros.</b> A versão de navegador de ${esc(w.project || 'este port')} carrega de <code>${esc(w.externalHost)}</code>, que não é controlado pelo HydraHub nem pelo site que lista o jogo. Pode ficar lento ou sair do ar. Nunca instale nada que essa página pedir.</p></div>`).join('')}
       ${systems.length ? `<p>Disponível para: ${systems.map((s) => `<span class="tag">${esc(sysName[s] || s)}</span>`).join(' ')}</p>` : ''}
@@ -412,6 +417,7 @@ async function renderInstallState(g, iw) {
     bindInstallButtons(g, null, null, null);
     return;
   }
+  if (iw.direct) return renderDirectInstall(g, iw, inst, extra);
   const repo = repoOf(iw.repo || iw.url);
   const rel = await window.hydra.releases(repo);
   if (location.hash !== `#/jogo/${g.id}`) return;
@@ -443,6 +449,26 @@ async function renderInstallState(g, iw) {
   </div>`;
   bindInstallButtons(g, repo, latest, best);
 }
+// Emuladores com download direto: versão consultada ao vivo na API do site
+async function renderDirectInstall(g, iw, inst, extra) {
+  const actions = $('#actions'), stateBox = $('#install-state'), box = $('#release-box');
+  const live = await window.hydra.directVersion(iw.direct.api);
+  if (location.hash !== `#/jogo/${g.id}`) return;
+  const d = live.ok ? live : { version: iw.direct.version, files: iw.direct.files, sha256: iw.direct.sha256, changelog: [] };
+  const tag = `v${d.version}`;
+  const best = d.files.find((f) => /\.zip$/i.test(f.name)) || d.files[0];
+  const latest = { tag, name: `${g.title} ${tag}`, url: iw.url, assets: d.files };
+  if (inst) actions.innerHTML = installedButtons(g, inst, latest, best) + extra;
+  else actions.innerHTML = `<button class="btn primary" id="btn-install">${icon('download')}Instalar <span style="opacity:.7;font-weight:600">${esc(tag)} · ${fmtBytes(best.size)}</span></button>` + extra;
+  stateBox.innerHTML = inst ? installedInfo(inst) : `Última versão: <b style="color:var(--white)">${esc(tag)}</b><br>Download direto do site oficial${live.ok ? '' : ' (versão salva; site sem resposta agora)'}`;
+  box.innerHTML = `<div class="card way">
+    <div class="way-head"><span class="tag ok">${icon('check')}Download oficial</span><h3>${esc(g.title)} ${esc(tag)}</h3><span class="spacer"></span><a class="btn small" href="${esc(iw.url)}">${icon('external')}Site</a></div>
+    <div class="assets">${d.files.map((a) => `<div class="asset ${a.url === best.url ? 'best' : ''}">${icon(a.url === best.url ? 'check' : 'download')}<span class="n">${esc(a.label || a.name)} <span class="s">${esc(a.name)}</span></span><span class="s">${fmtBytes(a.size)}</span><a class="btn small ghost" href="${esc(a.url)}">Baixar</a></div>`).join('')}</div>
+    ${d.sha256 ? `<p class="muted" style="font-size:12px;margin:10px 0 0;word-break:break-all">SHA-256 da atualização: <code>${esc(d.sha256)}</code></p>` : ''}
+    ${d.changelog?.length ? `<details style="margin-top:10px" open><summary class="muted" style="cursor:pointer;font-size:13px">Novidades da ${esc(tag)}</summary><div class="release-notes">${d.changelog.map((c) => `• ${esc(c)}`).join('<br>')}</div></details>` : ''}
+  </div>`;
+  bindInstallButtons(g, null, latest, best, iw.direct.exeHint);
+}
 const installedInfo = (inst) => `<span class="tag ok">${icon('check')}Instalado</span><div style="margin-top:10px;font-size:12.5px;word-break:break-all">Versão ${esc(inst.tag || '?')}<br>${esc(inst.dir)}</div>`;
 function installedButtons(g, inst, latest, best) {
   const update = latest && best && inst.tag && latest.tag !== inst.tag;
@@ -452,9 +478,9 @@ function installedButtons(g, inst, latest, best) {
     <button class="btn ghost small" id="btn-exe" title="Escolher outro executável">${icon('wrench')}Escolher executável</button>
     <button class="btn ghost small danger" id="btn-uninstall">${icon('trash')}Desinstalar</button>`;
 }
-function bindInstallButtons(g, repo, latest, best) {
+function bindInstallButtons(g, repo, latest, best, exeHint) {
   $('#btn-install')?.addEventListener('click', async () => {
-    const p = window.hydra.install({ gameId: g.id, title: g.title, repo, asset: best, tag: latest.tag });
+    const p = window.hydra.install({ gameId: g.id, title: g.title, repo, asset: best, tag: latest.tag, exeHint });
     state.downloads.set(g.id, { phase: 'start', received: 0, total: best.size, title: g.title, cover: g.cover });
     drawProgress(g, state.downloads.get(g.id));
     updateDownloadsDot();
@@ -554,6 +580,10 @@ function pageLinks() {
       { title: 'GithubLauncher', url: 'https://github.com/SirDiabo/GithubLauncher', icon: 'github', text: 'Lista de recomps de N64 mantida pelo SirDiabo.' },
     ]],
     ['Achado IA', ACHADO.map((l) => ({ title: l.handle ? `${l.label} ${l.handle}` : l.label, url: l.url, icon: l.icon, text: l.text }))],
+    ['Emuladores', [
+      { title: 'Frame Perfect', url: 'https://www.frameperfect.cc/', icon: 'chip', text: 'Emulador arcade com rollback netcode: KOF, Street Fighter e mais, online sem lag.' },
+      { title: 'Frame Perfect: downloads', url: 'https://www.frameperfect.cc/download', icon: 'download', text: 'Instalador .exe, pacote portátil .zip e versão pra Windows 7.' },
+    ]],
     ['Preparar o PC', [
       { title: 'Visual C++ Redistributable (x64)', url: 'https://aka.ms/vs/17/release/vc_redist.x64.exe', icon: 'download', text: 'Resolve erros de MSVCP140.dll e VCRUNTIME140.dll.' },
       { title: 'Drivers AMD', url: 'https://www.amd.com/pt/support/download/drivers.html', icon: 'chip', text: 'Driver de vídeo atualizado evita tela preta e travamentos.' },

@@ -21,6 +21,19 @@ const fmtBytes = (n) => (!n ? '' : n > 1e9 ? `${(n / 1e9).toFixed(2)} GB` : n > 
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }) : '');
 const repoOf = (url = '') => (String(url).match(/github\.com\/([^/\s?#]+\/[^/\s?#]+)/i) || [])[1]?.replace(/\.git$/, '') || null;
 
+// ---------- Achado IA (criador do HydraHub) ----------
+const ACHADO = [
+  { id: 'site', label: 'achadoia.com', url: 'https://achadoia.com', icon: 'globe', text: 'O site do Achado IA: repositórios, ferramentas e jogos que valem a pena.' },
+  { id: 'youtube', label: 'YouTube', handle: '@achadoia', url: 'https://www.youtube.com/@achadoia', icon: 'youtube', text: 'Shorts todo dia com os achados do GitHub e de IA.' },
+  { id: 'instagram', label: 'Instagram', handle: '@achadoia', url: 'https://www.instagram.com/achadoia/', icon: 'instagram', text: 'Reels, tutoriais e os links dos vídeos no direct.' },
+  { id: 'tiktok', label: 'TikTok', handle: '@achadoiaoficial', url: 'https://www.tiktok.com/@achadoiaoficial', icon: 'tiktok', text: 'Os mesmos achados, no formato TikTok.' },
+];
+function renderAchado() {
+  $('#achado').innerHTML = `
+    <a class="achado-brand" href="https://achadoia.com" title="achadoia.com"><img src="assets/achadoia.png" alt=""><div><small>UM PROJETO</small><b>Achado IA</b></div></a>
+    <div class="achado-links">${ACHADO.map((l) => `<a href="${l.url}" title="${l.label}${l.handle ? ` ${l.handle}` : ''}">${icon(l.icon)}</a>`).join('')}</div>`;
+}
+
 // ---------- estado ----------
 const state = {
   catalog: null, games: [], byId: new Map(), installed: {}, settings: {}, downloads: new Map(), info: {},
@@ -521,6 +534,12 @@ function pageCommunity() {
   ];
   view.innerHTML = `
     <div class="page-head"><div><h1>Comunidade</h1><p>Onde os recomps nascem, e onde tirar dúvidas e trocar ideias.</p></div></div>
+    <section class="achado-hero card">
+      <img src="assets/achadoia.png" alt="Achado IA">
+      <div><span class="tag">FEITO PELO</span><h2>Achado IA</h2><p>O HydraHub é um projeto do Achado IA. Siga pra ver os melhores achados do GitHub, de IA e de jogos recompilados.</p></div>
+    </section>
+    <div class="link-cards achado-cards">${ACHADO.map((l) => linkCard({ title: l.handle ? `${l.label} ${l.handle}` : l.label, url: l.url, icon: l.icon, text: l.text })).join('')}</div>
+    <div class="section-head"><h2>Recomps e projetos</h2></div>
     <div class="link-cards">${L.map(linkCard).join('')}</div>
     <div class="section-head"><h2>Tutoriais da comunidade em vídeo</h2></div>
     <div class="videos-2">${state.games.filter((g) => g.videos?.some((v) => !v.from)).flatMap((g) => g.videos.filter((v) => !v.from)).slice(0, 4).map(videoBlock).join('')}</div>`;
@@ -534,6 +553,7 @@ function pageLinks() {
       { title: 'WASM Arcade', url: 'https://wasmarcade.com/', icon: 'browser', text: 'Ports de PC em WebAssembly: GTA 5, GTA III, Vice City, Hit & Run e mais.' },
       { title: 'GithubLauncher', url: 'https://github.com/SirDiabo/GithubLauncher', icon: 'github', text: 'Lista de recomps de N64 mantida pelo SirDiabo.' },
     ]],
+    ['Achado IA', ACHADO.map((l) => ({ title: l.handle ? `${l.label} ${l.handle}` : l.label, url: l.url, icon: l.icon, text: l.text }))],
     ['Preparar o PC', [
       { title: 'Visual C++ Redistributable (x64)', url: 'https://aka.ms/vs/17/release/vc_redist.x64.exe', icon: 'download', text: 'Resolve erros de MSVCP140.dll e VCRUNTIME140.dll.' },
       { title: 'Drivers AMD', url: 'https://www.amd.com/pt/support/download/drivers.html', icon: 'chip', text: 'Driver de vídeo atualizado evita tela preta e travamentos.' },
@@ -629,6 +649,7 @@ $('#btn-refresh').addEventListener('click', () => loadCatalog(true));
 
 (async () => {
   view.innerHTML = `<div class="home"><div><div class="skeleton" style="height:290px"></div><div class="quick">${'<div class="skeleton" style="height:120px"></div>'.repeat(3)}</div></div><div class="skeleton" style="height:520px"></div></div>`;
+  renderAchado();
   [state.installed, state.settings, state.info] = await Promise.all([window.hydra.installed(), window.hydra.getSettings(), window.hydra.info()]);
   await loadCatalog(false);
 })();

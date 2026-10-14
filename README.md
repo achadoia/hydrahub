@@ -31,3 +31,7 @@ npm run dist              # gera dist/HydraHub-Setup-x.y.z.exe e a versão porta
 ## Aviso
 
 O HydraHub não hospeda nem baixa ROMs ou arquivos de jogos. Ele aponta para projetos open source e baixa apenas as releases publicadas pelos próprios autores. Para jogar, use o dump da sua cópia original. Nomes e marcas pertencem aos seus donos.
+
+## Criado por
+
+<a href="https://achadoia.com"><img src="src/renderer/assets/achadoia.png" width="48" align="left" alt="Achado IA"></a> **[Achado IA](https://achadoia.com)** · [YouTube](https://www.youtube.com/@achadoia) · [Instagram](https://www.instagram.com/achadoia/) · [TikTok](https://www.tiktok.com/@achadoiaoficial)

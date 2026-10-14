@@ -34,6 +34,9 @@ const P = {
   reddit: '<circle cx="12" cy="13.5" r="6.5"/><circle cx="9.5" cy="13" r=".8" fill="currentColor"/><circle cx="14.5" cy="13" r=".8" fill="currentColor"/><path d="M9.5 16c1.5 1 3.5 1 5 0M12 7l1-4 3.5 1"/><circle cx="17.5" cy="4" r="1.3"/>',
   refresh: '<path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/>',
   filter: '<path d="M4 5h16l-6 7.5V19l-4 1.5v-8L4 5Z"/>',
+  instagram: '<rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r=".9" fill="currentColor"/>',
+  youtube: '<rect x="2.5" y="5.5" width="19" height="13" rx="4"/><path d="m10 9 5 3-5 3V9Z" fill="currentColor"/>',
+  tiktok: '<path d="M14 3v11.5a3.5 3.5 0 1 1-3.5-3.5"/><path d="M14 3c.4 2.6 2.2 4.4 5 4.6"/>',
 };
 
 export const icon = (name, extra = '') => `<svg viewBox="0 0 24 24" ${extra}>${P[name] || P.info}</svg>`;

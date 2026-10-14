@@ -4,6 +4,9 @@ on:
   schedule:
     - cron: '17 6 * * *'   # todo dia, 03:17 em Brasília
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['scraper/**', '.github/workflows/catalog.yml']
 
 permissions:
   contents: write
@@ -25,11 +28,21 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: node scraper/build-catalog.mjs
+      - name: Repositórios (top 100 da história, top 100 dos últimos 2 meses, recomendados do Achado IA)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scraper/build-repos.mjs
+      - name: Downloads dos jogos (rankings da semana, do mês e de sempre)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scraper/build-stats.mjs
       - name: Commit se mudou
         run: |
           if git diff --quiet -- catalog/; then echo "Sem mudanças."; exit 0; fi
           git config user.name "hydrahub-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add catalog/catalog.json catalog/translations.json catalog/videos.json
+          git add catalog/
           git commit -m "catálogo: atualização automática $(date -u +%F)"
+          git pull --rebase origin main
           git push

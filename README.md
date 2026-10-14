@@ -1,10 +1,18 @@
 <p align="center"><img src="src/renderer/assets/logo.png" width="160" alt="HydraHub"></p>
 
 <h1 align="center">HydraHub</h1>
-<p align="center"><b>Tutoriais · Links · Jogos recompilados</b><br>Seu hub de recomps, tudo em um só lugar.</p>
+<p align="center"><b>Jogos recompilados · Repositórios do GitHub · Tutoriais</b><br>Seu hub de recomps e dos melhores projetos open source, tudo em um só lugar.</p>
 <p align="center"><a href="https://www.virustotal.com/gui/file/4a7e55ea3876120c500eecc3d580d8d619a86773b3cf8865be5a4fa47549e2cb"><img src="https://img.shields.io/badge/VirusTotal-0%2F67%20sem%20v%C3%ADrus-2ea44f?logo=virustotal&logoColor=white&style=for-the-badge" alt="VirusTotal: 0 de 67 antivírus detectaram algo"></a></p>
 
 O HydraHub é um app desktop (Electron) no estilo do Hydra, feito só para **recomps, decomps e ports**: ele junta o catálogo de cinco fontes, mostra **um jogo por página** (sem repetir), com tutorial em português, imagens, vídeos e o **botão Instalar** que baixa a release oficial do GitHub, extrai e deixa pronto para jogar.
+
+## O que tem dentro
+
+- **Jogos recompilados**: um jogo por página, com tutorial em português, vídeos e botão **Instalar** que baixa a release oficial do GitHub.
+- **Repositórios**: os projetos do GitHub explicados em português (o que são, pra que servem, quem aproveita), com prints. Abas **Recomendados** (os que saíram no Achado IA), **Em alta** (os 100 com mais estrelas criados nos últimos 2 meses), **Mais estrelas na semana** e **Top 100 da história**.
+- **Mais baixados**: ranking da semana, do mês e de todos os tempos, contado nos downloads das releases oficiais.
+- **Surpreenda-me**: o app sorteia um jogo ou um repositório pra você.
+- **Tudo se atualiza sozinho**: catálogo, repositórios e rankings são regenerados todo dia; o próprio app baixa a versão nova em segundo plano e os jogos instalados se atualizam quando sai release nova. Não precisa baixar de novo.
 
 ## Baixar
 

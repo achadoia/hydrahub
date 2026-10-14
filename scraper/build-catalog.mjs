@@ -400,47 +400,51 @@ async function fromFramePerfect() {
 
 // ---------- Destaques (curadoria do Achado IA) ----------
 // Ports de PS4 que viraram vídeo no canal; aparecem primeiro no app.
+const ASSETS = 'https://raw.githubusercontent.com/achadoia/hydrahub/main/src/renderer/assets/covers';
 function fromDestaques() {
   const GUIA = 'https://docs.google.com/document/d/1fVDxx-ukuCQuGiKjxljJe9IjUxGz2qZBR_F34wDlmos/edit?usp=sharing';
+  const shots = (p) => [1, 2, 3, 4].map((n) => `${ASSETS}/${p}-shot-${n}.jpg`);
   console.log('> destaques');
   return [
     {
       title: 'God of War III Remastered', year: 2015, platforms: ['ps4'], genres: ['ação'], featured: 1,
-      cover: 'assets/covers/gow3-cover.jpg', backdrop: 'assets/covers/gow3-backdrop.jpg',
-      description: 'Port de God of War III Remastered (PS4) pro Windows: o código x86-64 original roda direto no processador com um runtime próprio, e os gráficos usam o núcleo de vídeo do shadPS4 (Vulkan). Jogável do começo ao fim, com patch de 240 FPS, launcher e menu dentro do jogo.',
+      cover: `${ASSETS}/gow3-cover.jpg`, backdrop: `${ASSETS}/gow3-backdrop.jpg`, screenshots: shots('gow3'),
+      description: 'God of War III Remastered (PS4) rodando no PC sem emulador, em até 4K e 60 FPS ou mais. O código x86-64 original roda direto no processador com um runtime próprio, e os gráficos usam o núcleo de vídeo do shadPS4 (Vulkan). Jogável do começo ao fim, com patch de 240 FPS, launcher em português e menu dentro do jogo.',
       projects: [{ name: 'gow3_pc', repo: 'https://github.com/FelipePrado0/gow3_pc', method: 'recompilation', source: 'destaques' }],
       ways: [{
         kind: 'install', url: 'https://github.com/FelipePrado0/gow3_pc', repo: 'https://github.com/FelipePrado0/gow3_pc', needs: 'game', systems: ['windows', 'linux'],
-        project: 'gow3_pc', exeHint: ['Play God of War III.exe', 'God of War III.exe'], steps: [], source: 'destaques',
+        project: 'gow3_pc', exeHint: ['God of War III.exe', 'Play God of War III.exe'], steps: [], source: 'destaques',
         stepsFixedPt: [
-          'Você precisa da <b>sua cópia do jogo</b> tirada do seu PS4: CUSA01623, versão 1.02. Nenhum arquivo do jogo vem no port.',
-          'Clique em <b>Instalar</b>: o HydraHub baixa a release oficial do GitHub (gow3-windows.zip) e extrai pra você.',
-          'Copie a pasta <b>CUSA01623</b> do seu dump pra dentro da pasta do jogo (botão <b>Abrir pasta</b>).',
-          'Clique em <b>Jogar</b>. No launcher dá pra escolher resolução até 4K, limite de FPS e patches.',
-          'Dentro do jogo, <b>Insert</b> (ou R3 + L2 no controle) abre o menu do port.',
+          '<b>Tenha a sua cópia do jogo</b>, tirada do seu próprio PS4: God of War III Remastered <b>CUSA01623, versão 1.02</b>. Nenhum arquivo do jogo vem no projeto.',
+          '<b>Baixe o port</b>: clique em <b>Instalar</b> e o HydraHub baixa a release oficial do GitHub (gow3-windows.zip) e extrai numa pasta. Prefere fazer na mão? O botão <b>GitHub do port</b>, em Links, leva pra página oficial.',
+          '<b>Abra o God of War III.exe</b> (botão <b>Jogar</b>). Se o Windows reclamar, clique em <b>Mais informações → Executar assim mesmo</b>.',
+          '<b>Escolha a pasta do jogo</b> no launcher: a pasta CUSA01623, aquela que tem o arquivo <b>eboot.bin</b>.',
+          '<b>Ajuste resolução e FPS</b> (até 4K e 120/240 FPS em Patches) e clique em <b>JOGAR</b>. A primeira vez demora um pouco, porque os shaders são montados.',
+          'Dentro do jogo, aperte <b>Insert</b> (ou <b>R3 + L2</b> no controle) pra abrir o menu do port: trapaças, desempenho e contador de FPS.',
         ],
       }],
       videos: [{ youtubeId: 'Q0GN0JvEXBw', title: 'God of War 3 Remastered now has a PC Port! - Setup Guide/Tutorial', author: 'IgorL - Emulation Guides', length: '8:04', from: 'youtube' }],
-      links: [{ name: 'GitHub do port', url: 'https://github.com/FelipePrado0/gow3_pc' }, { name: 'Guia completo (Achado IA)', url: GUIA }],
+      links: [{ name: 'GitHub do port (gow3_pc)', url: 'https://github.com/FelipePrado0/gow3_pc' }, { name: 'Releases no GitHub', url: 'https://github.com/FelipePrado0/gow3_pc/releases/latest' }, { name: 'Guia completo (Achado IA)', url: GUIA }],
     },
     {
-      title: 'Shadow of the Colossus', featured: 2, platforms: ['ps4'],
-      cover: 'assets/covers/sotc-cover.jpg', backdrop: 'assets/covers/sotc-backdrop.jpg',
-      description: 'O remake de PS4 (2018) rodando no PC pelo Pink-shadPS4, um fork do shadPS4 otimizado pra Shadow of the Colossus, com launcher próprio. Também existe um port nativo de fã em andamento, com 60 FPS e saída em 4K; o guia do Achado IA mostra os dois caminhos.',
+      title: 'Shadow of the Colossus Remake', aliases: ['Shadow of the Colossus PS4', 'SotC Remake'], year: 2018, platforms: ['ps4'], genres: ['aventura'], featured: 2,
+      cover: `${ASSETS}/sotc-cover.jpg`, backdrop: `${ASSETS}/sotc-backdrop.jpg`, screenshots: shots('sotc'),
+      description: 'O remake de Shadow of the Colossus feito pro PS4 (2018), rodando no PC. O jeito mais pronto hoje é o Pink-shadPS4, um fork do shadPS4 otimizado pra esse jogo, com launcher próprio. Também existe um port nativo de fã em andamento, com 60 FPS e saída em 4K: o guia do Achado IA mostra os dois caminhos.',
       projects: [{ name: 'Pink-shadPS4', repo: 'https://github.com/luizgustavs/Pink-shadPS4', method: 'emulator', role: 'runs', source: 'destaques' }],
       ways: [{
         kind: 'install', url: 'https://github.com/luizgustavs/Pink-shadPS4', repo: 'https://github.com/luizgustavs/Pink-shadPS4', needs: 'game', systems: ['windows'],
         project: 'Pink-shadPS4', steps: [], source: 'destaques',
         stepsFixedPt: [
-          'Você precisa da <b>sua cópia do remake</b> tirada do seu PS4: CUSA08809. Nenhum arquivo do jogo vem no emulador.',
-          'Clique em <b>Instalar</b>: o HydraHub baixa a release oficial do Pink-shadPS4 e extrai pra você.',
-          'Coloque a pasta <b>CUSA08809</b> dentro de <b>games</b>, na pasta do emulador (botão <b>Abrir pasta</b>).',
-          'Clique em <b>Jogar</b>, escolha o jogo no launcher e mande ver nos colossos.',
-          'Se o jogo fechar na abertura com erro de memória, aumente o arquivo de paginação do Windows (o boot reserva uns 8 GB).',
+          '<b>Tenha a sua cópia do remake</b>, tirada do seu próprio PS4: <b>CUSA08809</b> (versão 1.01 ou mais nova). Nenhum arquivo do jogo vem no emulador.',
+          '<b>Baixe o Pink-shadPS4</b>: clique em <b>Instalar</b> e o HydraHub baixa a release oficial do GitHub e extrai pra você.',
+          '<b>Coloque o jogo</b>: copie a pasta <b>CUSA08809</b> (a que tem o <b>eboot.bin</b>) pra dentro da pasta <b>games</b> do emulador. Use o botão <b>Abrir pasta</b>.',
+          '<b>Som</b>: se o jogo ficar mudo, aponte os módulos de som do seu console nas configurações do launcher.',
+          '<b>Ajuste a imagem</b>: liga os 60 FPS e escolhe a resolução (até 4K). Placas AMD costumam rodar melhor com o upscaler FSR.',
+          'Clique em <b>Jogar</b>. Se fechar logo na abertura com erro de memória, aumente o arquivo de paginação do Windows: o jogo reserva uns 8 GB de uma vez.',
         ],
       }],
       videos: [{ youtubeId: 'P8gHxgtVxSY', title: 'Shadow of the Colossus Remake — Projeto: Port PC', author: 'Ajnc', length: '', from: 'youtube' }],
-      links: [{ name: 'Pink-shadPS4', url: 'https://github.com/luizgustavs/Pink-shadPS4' }, { name: 'Guia completo (Achado IA)', url: GUIA }],
+      links: [{ name: 'GitHub do Pink-shadPS4', url: 'https://github.com/luizgustavs/Pink-shadPS4' }, { name: 'Releases no GitHub', url: 'https://github.com/luizgustavs/Pink-shadPS4/releases/latest' }, { name: 'Launcher do Pink-shadPS4', url: 'https://github.com/luizgustavs/Pink-shadPS4-launcher' }, { name: 'Guia completo (Achado IA)', url: GUIA }],
     },
   ];
 }

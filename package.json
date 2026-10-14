@@ -1,7 +1,7 @@
 {
   "name": "hydrahub",
   "productName": "HydraHub",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "description": "HydraHub — tutoriais, links e instalador de jogos recompilados, tudo em um só lugar.",
   "author": "HydraHub",
   "license": "MIT",
@@ -10,9 +10,10 @@
     "start": "electron .",
     "catalog": "node scraper/build-catalog.mjs",
     "catalog:quick": "node scraper/build-catalog.mjs --quick",
-    "dist": "electron-builder --win nsis"
+    "dist": "electron-builder --win nsis --publish never"
   },
   "dependencies": {
+    "electron-updater": "^6.3.9",
     "extract-zip": "^2.0.1"
   },
   "devDependencies": {
@@ -22,6 +23,14 @@
   },
   "build": {
     "appId": "com.hydrahub.app",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "achadoia",
+        "repo": "hydrahub",
+        "releaseType": "release"
+      }
+    ],
     "productName": "HydraHub",
     "directories": {
       "output": "dist",
@@ -30,6 +39,8 @@
     "files": [
       "src/**/*",
       "catalog/catalog.json",
+      "catalog/repos.json",
+      "catalog/stats.json",
       "package.json",
       "!**/*.map"
     ],

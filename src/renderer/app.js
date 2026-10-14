@@ -46,6 +46,7 @@ const NAV = [
   { id: 'inicio', label: 'Início', icon: 'home' },
   { id: 'tutoriais', label: 'Tutoriais', icon: 'book' },
   { id: 'jogos', label: 'Jogos Recompilados', icon: 'gamepad' },
+  { id: 'repos', label: 'Repositórios', icon: 'github' },
   { id: 'biblioteca', label: 'Minha Biblioteca', icon: 'library' },
   { id: 'comunidade', label: 'Comunidade', icon: 'users' },
   { id: 'links', label: 'Links Úteis', icon: 'link' },
@@ -53,16 +54,16 @@ const NAV = [
 ];
 function renderNav(active) {
   const n = Object.keys(state.installed).length;
-  $('#nav').innerHTML = NAV.map((i) => `<a class="nav-item ${i.id === active ? 'active' : ''}" href="#/${i.id}">${icon(i.icon)}<span>${i.label}</span>${i.id === 'biblioteca' && n ? `<em class="count">${n}</em>` : ''}${i.id === 'jogos' && state.games.length ? `<em class="count">${state.games.filter((g) => g.playable).length}</em>` : ''}</a>`).join('');
+  $('#nav').innerHTML = NAV.map((i) => `<a class="nav-item ${i.id === active ? 'active' : ''}" href="#/${i.id}">${icon(i.icon)}<span>${i.label}</span>${i.id === 'biblioteca' && n ? `<em class="count">${n}</em>` : ''}${i.id === 'repos' && state.repos ? `<em class="count">${state.repos.repos.length}</em>` : ''}${i.id === 'jogos' && state.games.length ? `<em class="count">${state.games.filter((g) => g.playable).length}</em>` : ''}</a>`).join('');
 }
 
 function route() {
   const [, rawPage = 'inicio', arg] = (location.hash || '#/inicio').split('?')[0].split('/');
   const page = rawPage || 'inicio';
-  const map = { jogo: 'jogos', tutorial: 'tutoriais' };
+  const map = { jogo: 'jogos', tutorial: 'tutoriais', repo: 'repos' };
   renderNav(map[page] || page);
   view.scrollTop = 0;
-  const pages = { inicio: pageHome, tutoriais: pageTutorials, tutorial: pageTutorial, jogos: pageGames, jogo: pageGame, biblioteca: pageLibrary, comunidade: pageCommunity, links: pageLinks, config: pageSettings };
+  const pages = { inicio: pageHome, tutoriais: pageTutorials, tutorial: pageTutorial, jogos: pageGames, jogo: pageGame, repos: pageRepos, repo: pageRepo, biblioteca: pageLibrary, comunidade: pageCommunity, links: pageLinks, config: pageSettings };
   (pages[page] || pageHome)(decodeURIComponent(arg || ''));
 }
 window.addEventListener('hashchange', route);
@@ -102,6 +103,9 @@ function toast(text, type = 'info', ms = 4200) {
   $('#toasts').append(el);
   setTimeout(() => el.remove(), ms);
 }
+
+// imagem que não carrega some (o CSP bloqueia onerror inline)
+document.addEventListener('error', (e) => { if (e.target.tagName === 'IMG') e.target.style.visibility = 'hidden'; }, true);
 
 // cliques globais: vídeos, links externos, lightbox
 document.addEventListener('click', (e) => {
@@ -149,16 +153,19 @@ function pageHome() {
         ${quickCard('jogos', 'gamepad', 'Jogos Recompilados', 'Títulos recentes, em um só link.')}
         ${quickCard('comunidade', 'users', 'Comunidade', 'Tire dúvidas, compartilhe e fique por dentro.')}
       </div>
+      <div class="surprise-bar card"><div><b>Não sabe o que jogar ou testar?</b><span>A gente escolhe um jogo ou repositório pra você.</span></div>${surpriseBtn('games', 'Jogo surpresa')}${surpriseBtn('repos', 'Repo surpresa')}</div>
+      ${rankingsSection()}
       <div class="section-head"><h2>Jogos Recompilados Recentes</h2><a href="#/jogos?sort=recent">Ver todos ${icon('arrow')}</a></div>
       <div class="row-scroll">${recentGames().map((g) => cover(g)).join('')}</div>
       <div class="section-head"><h2>Mais populares</h2><a href="#/jogos">Ver todos ${icon('arrow')}</a></div>
       <div class="row-scroll">${state.games.filter((g) => g.playable && g.kinds.includes('install') && g.cover).slice(0, 16).map((g) => cover(g)).join('')}</div>
+      ${reposHomeSection()}
       <div class="section-head"><h2>Online agora no navegador</h2><a href="#/jogos?kind=browser">Ver todos ${icon('arrow')}</a></div>
       <div class="row-scroll">${state.games.filter((g) => g.kinds.includes('browser') && g.browserOnline && g.cover).slice(0, 16).map((g) => cover(g)).join('')}</div>
       ${state.games.some((g) => g.category === 'emulador') ? `<div class="section-head"><h2>Emuladores</h2><a href="#/jogos?kind=emulator">Ver todos ${icon('arrow')}</a></div>
       <div class="row-scroll">${state.games.filter((g) => g.category === 'emulador').map((g) => cover(g)).join('')}</div>` : ''}
       <div class="section-head"><h2>Tutoriais em destaque</h2><a href="#/tutoriais">Ver todos ${icon('arrow')}</a></div>
-      <div class="tut-grid">${TUTORIALS.slice(0, 3).map(tutCard).join('')}</div>
+      <div class="tut-grid">${[...featuredGames().map(gameTutCard), ...TUTORIALS.map(tutCard)].slice(0, 3).join('')}</div>
     </div>
     <aside class="aside card">
       <div class="brand-mini"><img src="assets/logo-128.png" alt=""><span>Hydra<i>Hub</i></span></div>
@@ -193,6 +200,7 @@ function pageHome() {
   };
   if (heroes.length) { show(0); heroTimer = setInterval(() => { i = (i + 1) % heroes.length; show(i); }, 6000); }
   $$('.hero-dots i').forEach((d) => d.addEventListener('click', () => { i = +d.dataset.i; show(i); }));
+  bindRankings();
 }
 const quickCard = (to, ic, t, p) => `<a class="quick-card card" href="#/${to}"><div class="qh">${icon(ic)}<h3>${t}</h3></div><p>${p}</p><span class="arrow">${icon('arrow')}</span></a>`;
 const feature = (ic, t, s) => `<div class="feature"><div class="ring">${icon(ic)}</div><div><b>${t}</b><span>${s}</span></div></div>`;
@@ -205,11 +213,20 @@ function tutCard(t) {
     <div class="body"><h3>${esc(t.title)}</h3><p>${esc(t.summary)}</p><div class="foot">${icon('clock')}${t.minutes} min de leitura</div></div>
   </a>`;
 }
+// tutoriais dos jogos em destaque: vêm do catálogo online (passo a passo + prints + vídeo na página do jogo)
+const featuredGames = () => state.games.filter((g) => g.featured).sort((a, b) => a.featured - b.featured);
+function gameTutCard(g) {
+  const w = g.ways.find((x) => x.stepsFixedPt?.length);
+  return `<a class="tut-card card" href="#/jogo/${g.id}">
+    <div class="thumb" style="background-image:url('${esc(g.backdrop || g.cover)}')"><span class="tag cyan lvl">${icon('gamepad')}No PC</span></div>
+    <div class="body"><h3>Como jogar ${esc(g.title)} no PC</h3><p>${esc((g.descriptionPt || g.description || '').split('. ')[0])}.</p><div class="foot">${icon('clock')}${w ? `${w.stepsFixedPt.length} passos` : 'Passo a passo'} · com prints e vídeo</div></div>
+  </a>`;
+}
 function pageTutorials() {
   const withVideos = state.games.filter((g) => g.playable && g.kinds.includes('install') && g.videos?.length).slice(0, 12);
   view.innerHTML = `
     <div class="page-head"><div><h1>Tutoriais</h1><p>Guias em português, com imagens e vídeos, para instalar e aproveitar cada recomp.</p></div></div>
-    <div class="tut-grid">${TUTORIALS.map(tutCard).join('')}</div>
+    <div class="tut-grid">${featuredGames().map(gameTutCard).join('')}${TUTORIALS.map(tutCard).join('')}</div>
     <div class="section-head"><h2>Guias por jogo</h2><a href="#/jogos">Todos os jogos ${icon('arrow')}</a></div>
     <p class="muted" style="margin-top:-6px">Cada jogo do catálogo tem um tutorial próprio, com o passo a passo do projeto oficial traduzido, vídeos e o download direto.</p>
     <div class="row-scroll" style="margin-top:14px">${withVideos.map((g) => cover(g)).join('')}</div>`;
@@ -249,7 +266,8 @@ function applyFilters() {
     }
     return true;
   });
-  if (f.sort === 'az') list = [...list].sort((a, b) => a.title.localeCompare(b.title));
+  if (f.sort === 'downloads') { const d = (g) => state.stats?.games?.[g.id]?.total ?? -1; list = [...list].sort((a, b) => d(b) - d(a)); }
+  else if (f.sort === 'az') list = [...list].sort((a, b) => a.title.localeCompare(b.title));
   else if (f.sort === 'recent') {
     const t = (g) => g.ways.reduce((m, w) => Math.max(m, w.release?.publishedAt ? Date.parse(w.release.publishedAt) : 0), 0);
     list = [...list].sort((a, b) => t(b) - t(a));
@@ -274,7 +292,7 @@ function pageGames(arg) {
       <span class="spacer"></span>
       <select class="select" id="f-plat"><option value="">Todas as plataformas</option>${plats.map(([p, n]) => `<option value="${p}" ${state.filter.platform === p ? 'selected' : ''}>${esc(platName(p))} (${n})</option>`).join('')}</select>
       <select class="select" id="f-sort">
-        ${[['popular', 'Mais populares'], ['recent', 'Release mais recente'], ['az', 'A–Z'], ['year', 'Ano de lançamento']].map(([v, l]) => `<option value="${v}" ${state.filter.sort === v ? 'selected' : ''}>${l}</option>`).join('')}
+        ${[['popular', 'Mais populares'], ['downloads', 'Mais baixados'], ['recent', 'Release mais recente'], ['az', 'A–Z'], ['year', 'Ano de lançamento']].map(([v, l]) => `<option value="${v}" ${state.filter.sort === v ? 'selected' : ''}>${l}</option>`).join('')}
       </select>
     </div>
     <div class="result-count" id="count"></div>
@@ -602,6 +620,166 @@ function pageLinks() {
     ${sections.map(([t, L]) => `<div class="section-head"><h2>${t}</h2></div><div class="link-cards">${L.map(linkCard).join('')}</div>`).join('')}`;
 }
 
+// ---------- RANKINGS (downloads das releases no GitHub, retrato diário) ----------
+const fmtNum = (n) => (n >= 1e6 ? `${(n / 1e6).toFixed(1).replace('.', ',')} mi` : n >= 1e3 ? `${(n / 1e3).toFixed(1).replace('.', ',')} mil` : String(n ?? 0));
+const RANKS = [
+  { id: 'week', label: 'Da semana', unit: 'downloads na semana' },
+  { id: 'month', label: 'Do mês', unit: 'downloads no mês' },
+  { id: 'total', label: 'De todos os tempos', unit: 'downloads' },
+];
+// semana/mês só existem depois de alguns dias de histórico; até lá cai pro total
+function rankList(kind) {
+  const r = state.stats?.rankings || {};
+  const ids = (r[kind]?.length ? r[kind] : r.total || []).map(G).filter(Boolean);
+  return { games: ids, fallback: !r[kind]?.length && kind !== 'total' };
+}
+function rankCard(g, i, kind) {
+  const s = state.stats?.games?.[g.id] || {};
+  const n = kind === 'total' || s[kind] == null ? s.total : s[kind];
+  return `<div class="rank-item"><span class="rank-n">${i + 1}</span>${cover(g)}<span class="rank-dl">${icon('download')}${fmtNum(n)}</span></div>`;
+}
+function rankingsSection() {
+  if (!state.stats?.rankings?.total?.length) return '';
+  return `<div class="section-head"><h2>Mais baixados</h2><div class="seg" id="rank-tabs">${RANKS.map((r, i) => `<button class="chip ${i === 0 ? 'on' : ''}" data-rank="${r.id}">${r.label}</button>`).join('')}</div></div>
+    <p class="muted rank-note" id="rank-note"></p>
+    <div class="row-scroll rank-row" id="rank-row"></div>`;
+}
+function bindRankings() {
+  const row = $('#rank-row');
+  if (!row) return;
+  const draw = (kind) => {
+    const { games, fallback } = rankList(kind);
+    row.innerHTML = games.slice(0, 16).map((g, i) => rankCard(g, i, fallback ? 'total' : kind)).join('');
+    const r = RANKS.find((x) => x.id === kind);
+    $('#rank-note').textContent = fallback
+      ? 'O ranking da semana e do mês aparece depois de alguns dias de contagem; por enquanto mostramos o total de downloads.'
+      : `Somando os downloads das releases oficiais no GitHub (${r.unit}).`;
+    $$('#rank-tabs .chip').forEach((b) => b.classList.toggle('on', b.dataset.rank === kind));
+  };
+  $$('#rank-tabs .chip').forEach((b) => b.addEventListener('click', () => draw(b.dataset.rank)));
+  draw('week');
+}
+
+// ---------- SURPREENDA-ME ----------
+function surprise(kind = 'any') {
+  const games = state.games.filter((g) => g.playable && g.cover);
+  const repos = state.repos?.repos || [];
+  const pool = kind === 'games' ? games : kind === 'repos' ? repos : [...games, ...repos];
+  if (!pool.length) return;
+  const x = pool[Math.floor(Math.random() * pool.length)];
+  location.hash = x.full ? `#/repo/${encodeURIComponent(x.full)}` : `#/jogo/${x.id}`;
+}
+const surpriseBtn = (kind, label = 'Surpreenda-me') => `<button class="btn surprise" data-surprise="${kind}">${icon('dice')}${label}</button>`;
+document.addEventListener('click', (e) => { const b = e.target.closest('[data-surprise]'); if (b) surprise(b.dataset.surprise); });
+
+// ---------- REPOSITÓRIOS ----------
+const R = (full) => state.repoByFull?.get(full.toLowerCase());
+const REPO_TABS = [
+  { id: 'recomendados', label: 'Recomendados', icon: 'star', text: 'Os que já apareceram no Achado IA, com skill pronta pro Claude Code.' },
+  { id: 'novos', label: 'Em alta (2 meses)', icon: 'fire', text: 'Os 100 com mais estrelas entre os criados nos últimos 2 meses.' },
+  { id: 'semana', label: 'Mais estrelas na semana', icon: 'bolt', text: 'Quem mais ganhou estrelas nos últimos 7 dias.' },
+  { id: 'top', label: 'Top 100 da história', icon: 'trophy', text: 'Os 100 repositórios com mais estrelas de todos os tempos.' },
+];
+function repoList(tab) {
+  const d = state.repos;
+  if (!d) return [];
+  if (tab === 'semana') return [...d.repos].sort((a, b) => (b.starsWeek || 0) - (a.starsWeek || 0)).slice(0, 100);
+  return (d.lists[tab] || []).map(R).filter(Boolean);
+}
+function repoCard(r, i, tab) {
+  const posted = state.repos?.achadoia?.[r.full];
+  return `<a class="repo-card" href="#/repo/${encodeURIComponent(r.full)}">
+    <div class="rc-img"><img src="${esc(r.shots?.[0] || '')}" loading="lazy" alt="" onerror="this.remove()">${i != null && tab !== 'recomendados' ? `<span class="rc-n">#${i + 1}</span>` : ''}${posted ? `<span class="tag achado">${icon('star')}Achado IA</span>` : ''}</div>
+    <div class="rc-body">
+      <div class="rc-name"><img src="${esc(r.ownerAvatar || '')}" alt="" onerror="this.remove()"><span><small>${esc(r.owner)}/</small>${esc(r.name)}</span></div>
+      <p>${esc(r.resumo || r.description || '')}</p>
+      <div class="rc-meta"><span>${icon('star')}${fmtNum(r.stars)}</span>${r.starsWeek ? `<span class="up">+${fmtNum(r.starsWeek)} na semana</span>` : ''}${r.language ? `<span>${icon('code')}${esc(r.language)}</span>` : ''}${r.categoria ? `<span class="tag">${esc(r.categoria)}</span>` : ''}</div>
+    </div>
+  </a>`;
+}
+function pageRepos() {
+  const params = new URLSearchParams((location.hash.split('?')[1]) || '');
+  const tab = REPO_TABS.some((t) => t.id === params.get('tab')) ? params.get('tab') : state.repoTab || 'recomendados';
+  state.repoTab = tab;
+  const t = REPO_TABS.find((x) => x.id === tab);
+  if (!state.repos) { view.innerHTML = `<div class="page-head"><div><h1>Repositórios</h1><p>Carregando…</p></div></div>`; return; }
+  const cats = [...new Set(repoList(tab).map((r) => r.categoria).filter(Boolean))].sort();
+  view.innerHTML = `
+    <div class="page-head"><div><h1>Repositórios</h1><p>Os projetos do GitHub que valem a pena, explicados em português: o que são, pra que servem e quem aproveita.</p></div>${surpriseBtn('repos')}</div>
+    <div class="filters">${REPO_TABS.map((x) => `<a class="chip ${x.id === tab ? 'on' : ''}" href="#/repos?tab=${x.id}">${icon(x.icon, 'style="width:15px;height:15px"')}${x.label}</a>`).join('')}
+      <span class="spacer"></span>
+      <select class="select" id="r-cat"><option value="">Todas as categorias</option>${cats.map((c) => `<option ${state.repoCat === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>
+    </div>
+    <p class="muted" style="margin:4px 0 16px">${t.text} Atualizado em ${fmtDate(state.repos.generatedAt)}.</p>
+    <div class="repo-grid" id="repo-grid"></div>`;
+  const draw = () => {
+    const list = repoList(tab).map((r, i) => [r, i]).filter(([r]) => !state.repoCat || r.categoria === state.repoCat);
+    $('#repo-grid').innerHTML = list.length ? list.map(([r, i]) => repoCard(r, i, tab)).join('') : `<div class="empty" style="grid-column:1/-1"><img src="assets/logo-128.png" alt="">Nada por aqui ainda.</div>`;
+  };
+  $('#r-cat').addEventListener('change', (e) => { state.repoCat = e.target.value; draw(); });
+  draw();
+}
+function pageRepo(full) {
+  const r = full && R(full);
+  if (!r) { view.innerHTML = `<div class="empty"><img src="assets/logo-128.png" alt="">Repositório não encontrado. <a href="#/repos">Voltar</a></div>`; return; }
+  const posted = state.repos.achadoia?.[r.full];
+  const lists = [['top', 'Top 100 da história'], ['novos', 'Em alta (2 meses)'], ['recomendados', 'Recomendado pelo Achado IA']].filter(([k]) => state.repos.lists[k]?.includes(r.full));
+  const clone = `git clone https://github.com/${r.full}.git`;
+  view.innerHTML = `
+    <div class="repo-hero card">
+      <img class="rh-img" src="${esc(r.shots[0])}" alt="">
+      <div class="rh-body">
+        <a class="crumb" href="#/repos">${icon('back', 'style="width:15px;height:15px"')}Repositórios</a>
+        <h1>${esc(r.name)}</h1>
+        <div class="rh-owner"><img src="${esc(r.ownerAvatar || '')}" alt="" onerror="this.remove()">${esc(r.owner)}</div>
+        <p class="rh-sum">${esc(r.resumo || r.description)}</p>
+        <div class="rc-meta">${lists.map(([, l]) => `<span class="tag cyan">${esc(l)}</span>`).join('')}${r.categoria ? `<span class="tag">${esc(r.categoria)}</span>` : ''}</div>
+        <div class="actions">
+          <a class="btn primary" href="${esc(r.url)}">${icon('github')}Abrir no GitHub</a>
+          ${r.homepage ? `<a class="btn" href="${esc(r.homepage)}">${icon('globe')}Site do projeto</a>` : ''}
+          ${posted?.skill ? `<a class="btn achado-btn" href="${esc(posted.skill)}">${icon('star')}Skill do Achado IA</a>` : ''}
+        </div>
+      </div>
+    </div>
+    <div class="game-body">
+      <article class="tut">
+        <h2>O que é</h2>
+        <p class="lead">${esc(r.explicacao || r.description || '')}</p>
+        ${r.praQuem ? `<div class="callout">${icon('users')}<p><b>Pra quem é:</b> ${esc(r.praQuem)}</p></div>` : ''}
+        ${posted ? `<div class="callout achado-call">${icon('star')}<p><b>Saiu no Achado IA em ${fmtDate(posted.postedAt + 'T12:00:00')}.</b> ${esc(posted.skillWhat || '')}</p></div>` : ''}
+        ${r.description && r.explicacao ? `<p class="muted" style="font-size:13px">Descrição original: “${esc(r.description)}”</p>` : ''}
+        ${r.shots.length > 1 ? `<h2>Prints</h2><div class="shots repo-shots">${r.shots.slice(1).map((u) => `<img src="${esc(u)}" loading="lazy" alt="" onerror="this.remove()">`).join('')}</div>` : ''}
+        <h2>Baixar o código</h2>
+        <div class="clone"><code>${esc(clone)}</code><button class="btn small" id="copy-clone">${icon('copy')}Copiar</button></div>
+      </article>
+      <aside>
+        <div class="card side-box"><h4>Números</h4>
+          <div class="kv"><span>Estrelas</span><b>${r.stars.toLocaleString('pt-BR')}</b></div>
+          <div class="kv"><span>Na semana</span><b>+${(r.starsWeek || 0).toLocaleString('pt-BR')}${r.trendEstimated ? '*' : ''}</b></div>
+          <div class="kv"><span>No mês</span><b>+${(r.starsMonth || 0).toLocaleString('pt-BR')}${r.trendEstimated ? '*' : ''}</b></div>
+          <div class="kv"><span>Forks</span><b>${(r.forks || 0).toLocaleString('pt-BR')}</b></div>
+          ${r.language ? `<div class="kv"><span>Linguagem</span><b>${esc(r.language)}</b></div>` : ''}
+          ${r.license ? `<div class="kv"><span>Licença</span><b>${esc(r.license)}</b></div>` : ''}
+          <div class="kv"><span>Criado em</span><b>${fmtDate(r.createdAt)}</b></div>
+          <div class="kv"><span>Última mudança</span><b>${fmtDate(r.pushedAt)}</b></div>
+          ${r.trendEstimated ? '<p class="muted" style="font-size:11.5px;margin:8px 0 0">* estimativa pelo ritmo médio; vira número exato depois de uma semana de contagem.</p>' : ''}
+        </div>
+        ${r.topics?.length ? `<div class="card side-box"><h4>Tópicos</h4><div class="rc-meta">${r.topics.slice(0, 14).map((x) => `<span class="tag">${esc(x)}</span>`).join('')}</div></div>` : ''}
+      </aside>
+    </div>`;
+  $('#copy-clone').addEventListener('click', () => { navigator.clipboard.writeText(clone).then(() => toast('Comando copiado.', 'ok')); });
+}
+function reposHomeSection() {
+  const d = state.repos;
+  if (!d) return '';
+  const recs = repoList('recomendados').slice(0, 8);
+  const hot = repoList('semana').slice(0, 8);
+  return `${recs.length ? `<div class="section-head"><h2>Repositórios recomendados</h2><a href="#/repos?tab=recomendados">Ver todos ${icon('arrow')}</a></div>
+    <div class="repo-row">${recs.map((r) => repoCard(r, null, 'recomendados')).join('')}</div>` : ''}
+    <div class="section-head"><h2>Repositórios em alta na semana</h2><a href="#/repos?tab=semana">Ver todos ${icon('arrow')}</a></div>
+    <div class="repo-row">${hot.map((r, i) => repoCard(r, i, 'semana')).join('')}</div>`;
+}
+
 // ---------- CONFIGURAÇÕES ----------
 async function pageSettings() {
   const s = state.settings = await window.hydra.getSettings();
@@ -610,12 +788,14 @@ async function pageSettings() {
     <div class="settings card">
       <div class="set-row"><div class="l"><b>Pasta de instalação</b><span id="dir">${esc(s.installDir)}</span></div><button class="btn small" id="pick">${icon('folder')}Alterar</button></div>
       <div class="set-row"><div class="l"><b>Token do GitHub (opcional)</b><span>Sem token o GitHub libera 60 consultas por hora. <a href="https://github.com/settings/tokens">Crie um token</a> sem nenhuma permissão e cole aqui.</span></div><input class="input" id="token" type="password" placeholder="ghp_…" value="${esc(s.githubToken)}"></div>
+      <div class="set-row"><div class="l"><b>Atualizar jogos sozinho</b><span>Quando sair release nova de um jogo instalado, o HydraHub baixa e atualiza ao abrir. Saves e arquivos seus na pasta continuam lá.</span></div><label class="switch"><input type="checkbox" id="auto-games" ${s.autoUpdateGames !== false ? 'checked' : ''}><span></span></label></div>
       <div class="set-row"><div class="l"><b>Incluir versões de teste (pre-release)</b><span>Mostra builds beta quando forem as mais novas.</span></div><label class="switch"><input type="checkbox" id="pre" ${s.includePrerelease ? 'checked' : ''}><span></span></label></div>
       <div class="set-row"><div class="l"><b>Atualizar catálogo agora</b><span>O catálogo é regenerado todo dia no GitHub e baixado sozinho a cada ${s.autoRefreshHours}h.</span></div><button class="btn small" id="refresh">${icon('refresh')}Atualizar</button></div>
     </div>
     <p class="muted" style="font-size:12px;margin-top:20px;max-width:760px">O HydraHub só aponta e baixa projetos open source dos repositórios oficiais. Nenhuma ROM ou arquivo de jogo é distribuído. Nomes e marcas pertencem aos seus donos.</p>`;
   $('#pick').addEventListener('click', async () => { const d = await window.hydra.pickDir(); if (d) { state.settings = await window.hydra.setSettings({ installDir: d }); $('#dir').textContent = d; toast('Pasta salva.', 'ok'); } });
   $('#token').addEventListener('change', async (e) => { state.settings = await window.hydra.setSettings({ githubToken: e.target.value.trim() }); toast('Token salvo.', 'ok'); });
+  $('#auto-games').addEventListener('change', async (e) => { state.settings = await window.hydra.setSettings({ autoUpdateGames: e.target.checked }); });
   $('#pre').addEventListener('change', async (e) => { state.settings = await window.hydra.setSettings({ includePrerelease: e.target.checked }); });
   $('#refresh').addEventListener('click', () => loadCatalog(true));
 }
@@ -676,11 +856,39 @@ async function loadCatalog(force = false) {
   } finally { btn.classList.remove('spin'); }
   route();
 }
-$('#btn-refresh').addEventListener('click', () => loadCatalog(true));
+async function loadExtras(force) {
+  const [repos, stats] = await Promise.all([window.hydra.getData('repos', { force }), window.hydra.getData('stats', { force })]);
+  if (repos?.repos) { state.repos = repos; state.repoByFull = new Map(repos.repos.map((r) => [r.full.toLowerCase(), r])); }
+  if (stats?.games) state.stats = stats;
+  const page = (location.hash.split('/')[1] || 'inicio').split('?')[0];
+  if (['inicio', '', 'repos', 'repo', 'jogos'].includes(page)) route(); else renderNav(page);
+}
+$('#btn-refresh').addEventListener('click', () => { loadCatalog(true); loadExtras(true); });
 
 (async () => {
   view.innerHTML = `<div class="home"><div><div class="skeleton" style="height:290px"></div><div class="quick">${'<div class="skeleton" style="height:120px"></div>'.repeat(3)}</div></div><div class="skeleton" style="height:520px"></div></div>`;
   renderAchado();
   [state.installed, state.settings, state.info] = await Promise.all([window.hydra.installed(), window.hydra.getSettings(), window.hydra.info()]);
   await loadCatalog(false);
+  loadExtras(false);
+  autoUpdateGames();
 })();
+
+// jogos instalados se atualizam sozinhos quando sai release nova (o que está na pasta e não veio no zip, como saves e o dump, fica)
+async function autoUpdateGames() {
+  if (state.settings.autoUpdateGames === false) return;
+  for (const [id, inst] of Object.entries(state.installed)) {
+    const repo = repoOf(inst.repo || '');
+    if (!repo || state.downloads.has(id)) continue;
+    const rel = await window.hydra.releases(repo);
+    if (!rel?.ok || !rel.latest || !rel.best || rel.latest.tag === inst.tag) continue;
+    const g = G(id);
+    toast(`Atualizando ${inst.title} para ${rel.latest.tag}…`, 'info', 6000);
+    const r = await window.hydra.install({ gameId: id, title: inst.title, repo, asset: rel.best, tag: rel.latest.tag, exeHint: inst.exeHint || g?.ways.find((w) => w.exeHint)?.exeHint });
+    if (r.ok) { state.installed = await window.hydra.installed(); toast(`${inst.title} atualizado para ${rel.latest.tag}.`, 'ok'); }
+  }
+}
+window.hydra.onUpdate?.((u) => {
+  if (u.state === 'available') toast(`Nova versão do HydraHub (${u.version}) baixando em segundo plano…`, 'info', 6000);
+  if (u.state === 'ready') toast(`HydraHub ${u.version} pronto: a atualização entra quando você fechar o app.`, 'ok', 9000);
+});

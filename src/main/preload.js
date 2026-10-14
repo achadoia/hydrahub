@@ -4,6 +4,7 @@ const invoke = (ch) => (...args) => ipcRenderer.invoke(ch, ...args);
 
 contextBridge.exposeInMainWorld('hydra', {
   getCatalog: invoke('catalog:get'),
+  getData: invoke('data:get'),
   releases: invoke('github:releases'),
   directVersion: invoke('direct:version'),
   install: invoke('game:install'),
@@ -19,5 +20,6 @@ contextBridge.exposeInMainWorld('hydra', {
   open: invoke('shell:open'),
   info: invoke('app:info'),
   onProgress: (fn) => ipcRenderer.on('download:progress', (_e, p) => fn(p)),
+  onUpdate: (fn) => ipcRenderer.on('app:update', (_e, p) => fn(p)),
   onToast: (fn) => ipcRenderer.on('toast', (_e, p) => fn(p)),
 });

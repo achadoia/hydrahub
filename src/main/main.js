@@ -106,7 +106,22 @@ app.whenReady().then(() => {
     },
   );
   createWindow();
+  setupAutoUpdate();
 });
+
+// ---------- atualização automática do próprio app (releases do GitHub, latest.yml) ----------
+function setupAutoUpdate() {
+  if (!app.isPackaged || process.env.HYDRA_SHOT) return;
+  const { autoUpdater } = require('electron-updater');
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.on('update-available', (i) => send('app:update', { state: 'available', version: i.version }));
+  autoUpdater.on('update-downloaded', (i) => send('app:update', { state: 'ready', version: i.version }));
+  autoUpdater.on('error', (e) => console.warn('auto-update:', e.message));
+  const check = () => autoUpdater.checkForUpdates().catch(() => {});
+  setTimeout(check, 8000);
+  setInterval(check, 4 * 3600e3);
+}
 app.on('window-all-closed', () => app.quit());
 
 // ---------- catálogo ----------
@@ -135,6 +150,28 @@ ipcMain.handle('catalog:get', async (_e, { force } = {}) => {
     console.warn('catálogo remoto indisponível:', e.message);
   }
   return { catalog: newest, origin: newest ? 'offline' : 'vazio' };
+});
+
+// ---------- dados extras: repositórios e rankings de downloads (mesma lógica do catálogo) ----------
+const DATA_FILES = { repos: 'repos.json', stats: 'stats.json' };
+ipcMain.handle('data:get', async (_e, name, { force } = {}) => {
+  const file = DATA_FILES[name];
+  if (!file) return null;
+  const cacheFile = path.join(userData, `${name}-cache.json`);
+  const cached = readJson(cacheFile, null);
+  const bundled = readJson(path.join(__dirname, '..', '..', 'catalog', file), null);
+  const newest = [cached, bundled].filter(Boolean).sort((a, b) => (b.generatedAt || '').localeCompare(a.generatedAt || ''))[0] || null;
+  const fresh = cached?.fetchedAt && Date.now() - cached.fetchedAt < getSettings().autoRefreshHours * 3600e3;
+  if (!force && fresh) return newest;
+  try {
+    const remote = await fetchJson(`${CATALOG_URL.replace('catalog.json', file)}?t=${Date.now()}`, {}, 8000);
+    if (remote?.generatedAt) {
+      remote.fetchedAt = Date.now();
+      writeJson(cacheFile, remote);
+      return !newest || remote.generatedAt >= (newest.generatedAt || '') ? remote : newest;
+    }
+  } catch (e) { console.warn(`${file} remoto indisponível:`, e.message); }
+  return newest;
 });
 
 // ---------- GitHub releases ----------

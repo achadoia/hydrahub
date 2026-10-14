@@ -36,6 +36,11 @@ const P = {
   filter: '<path d="M4 5h16l-6 7.5V19l-4 1.5v-8L4 5Z"/>',
   instagram: '<rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r=".9" fill="currentColor"/>',
   youtube: '<rect x="2.5" y="5.5" width="19" height="13" rx="4"/><path d="m10 9 5 3-5 3V9Z" fill="currentColor"/>',
+  fire: '<path d="M12 21c-3.9 0-7-2.7-7-6.6 0-3.1 2-5.1 3.6-6.9.4 1.6 1.3 2.7 2.4 3.2C10.6 7 12.4 4.6 14.6 3c-.4 2.7.7 4.4 2.1 6C18.1 10.6 19 12.3 19 14.4 19 18.3 15.9 21 12 21Z"/><path d="M12 21c-1.7 0-3-1.2-3-2.9 0-1.6 1.3-2.6 2.2-3.6.5 1 1.3 1.5 2 1.7.3-.8.7-1.5 1.3-2.1.7 1.1 1.5 2.2 1.5 3.9 0 1.7-1.3 3-3 3Z"/>',
+  dice: '<rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><circle cx="8.3" cy="8.3" r="1.2" fill="currentColor"/><circle cx="15.7" cy="8.3" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="8.3" cy="15.7" r="1.2" fill="currentColor"/><circle cx="15.7" cy="15.7" r="1.2" fill="currentColor"/>',
+  trophy: '<path d="M8 4h8v5a4 4 0 0 1-8 0V4Z"/><path d="M8 6H4.5v1.5A3.5 3.5 0 0 0 8 11M16 6h3.5v1.5A3.5 3.5 0 0 1 16 11"/><path d="M12 13v4M8.5 20.5h7M9.5 17h5v3.5h-5z"/>',
+  code: '<path d="m8 8-4 4 4 4M16 8l4 4-4 4M13.5 5l-3 14"/>',
+  copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"/>',
   tiktok: '<path d="M14 3v11.5a3.5 3.5 0 1 1-3.5-3.5"/><path d="M14 3c.4 2.6 2.2 4.4 5 4.6"/>',
 };
 

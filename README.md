@@ -9,17 +9,17 @@ O HydraHub é um app desktop (Electron) no estilo do Hydra, feito só para **rec
 
 Pegue o **`HydraHub-Setup-x.y.z.exe`** na página de [Releases](https://github.com/achadoia/hydrahub/releases/latest) e instale. O Windows pode mostrar o aviso do SmartScreen (app sem assinatura): clique em *Mais informações → Executar assim mesmo*.
 
-**Login com Google é opcional.** O HydraHub abre e funciona inteiro sem conta; se quiser, use o botão *Entrar* no topo ou em Configurações.
-
 ## Prints
 
 <p align="center"><img src="docs/prints/inicio.jpg" alt="Tela inicial do HydraHub"></p>
 
-| Catálogo de jogos | Página do jogo |
+| God of War III Remastered | Shadow of the Colossus |
 |---|---|
-| <img src="docs/prints/jogos.jpg" alt="Catálogo de jogos recompilados"> | <img src="docs/prints/jogo.jpg" alt="Página do Zelda: Majora's Mask com botão Instalar"> |
-| **Emulador Frame Perfect** | **Tutoriais** |
-| <img src="docs/prints/emulador.jpg" alt="Emulador Frame Perfect instalado pelo HydraHub"> | <img src="docs/prints/tutoriais.jpg" alt="Tutoriais em português"> |
+| <img src="docs/prints/gow3.jpg" alt="God of War III Remastered no PC, instalação com 1 clique"> | <img src="docs/prints/sotc.jpg" alt="Shadow of the Colossus no PC pelo Pink-shadPS4"> |
+| **Emulador Frame Perfect** | **Catálogo de jogos** |
+| <img src="docs/prints/emulador.jpg" alt="Emulador Frame Perfect instalado pelo HydraHub"> | <img src="docs/prints/jogos.jpg" alt="Catálogo de jogos recompilados"> |
+| **Tutoriais** | |
+| <img src="docs/prints/tutoriais.jpg" alt="Tutoriais em português"> | |
 
 ## Fontes do catálogo
 
@@ -29,6 +29,7 @@ Pegue o **`HydraHub-Setup-x.y.z.exe`** na página de [Releases](https://github.c
 | [AllRecomps](https://allrecomps.com) | projetos por console, repositório oficial, sistemas suportados |
 | [Recompiled Games](https://recompiledgames.com) | ports que rodam no navegador |
 | [WASM Arcade](https://wasmarcade.com) | ports de PC em WebAssembly (GTA 5, GTA III, Vice City…). Fliperama e Flash ficam de fora |
+| Destaques do Achado IA | God of War III Remastered ([gow3_pc](https://github.com/FelipePrado0/gow3_pc)) e Shadow of the Colossus ([Pink-shadPS4](https://github.com/luizgustavs/Pink-shadPS4)), sempre no topo |
 | [Frame Perfect](https://www.frameperfect.cc) | emulador arcade com rollback netcode, download direto pela API oficial |
 | [SirDiabo/GithubLauncher](https://github.com/SirDiabo/GithubLauncher) | lista de recomps de N64 do launcher |
 

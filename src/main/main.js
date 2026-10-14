@@ -8,7 +8,6 @@ const fsp = require('node:fs/promises');
 const { spawn } = require('node:child_process');
 const { pathToFileURL } = require('node:url');
 const { pickAsset, rankExecutables } = require('./assets');
-const auth = require('./auth');
 
 // Repositório onde o catálogo é regenerado todo dia pelo GitHub Actions
 const CATALOG_URL = 'https://raw.githubusercontent.com/achadoia/hydrahub/main/catalog/catalog.json';
@@ -20,7 +19,6 @@ const userData = app.getPath('userData');
 const SETTINGS_FILE = path.join(userData, 'settings.json');
 const INSTALLED_FILE = path.join(userData, 'installed.json');
 const CATALOG_CACHE = path.join(userData, 'catalog-cache.json');
-const ACCOUNT_FILE = path.join(userData, 'account.json');
 
 let win;
 
@@ -348,14 +346,3 @@ ipcMain.handle('settings:pickDir', async () => {
 });
 ipcMain.handle('shell:open', (_e, url) => { if (/^https?:\/\//.test(url)) shell.openExternal(url); });
 ipcMain.handle('app:info', () => ({ version: app.getVersion(), platform: process.platform, arch: process.arch }));
-
-// ---------- conta Google (opcional) ----------
-ipcMain.handle('account:get', () => ({ account: readJson(ACCOUNT_FILE, null), available: auth.configured() }));
-ipcMain.handle('account:login', async () => {
-  const r = await auth.login();
-  if (r.ok) writeJson(ACCOUNT_FILE, r.account);
-  if (win && !win.isDestroyed()) { if (win.isMinimized()) win.restore(); win.focus(); }
-  return r;
-});
-ipcMain.handle('account:cancel', () => auth.cancel());
-ipcMain.handle('account:logout', () => { fs.rmSync(ACCOUNT_FILE, { force: true }); return true; });

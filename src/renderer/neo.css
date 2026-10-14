@@ -232,14 +232,3 @@ code { border: 2px solid var(--ink); background: var(--ink); color: var(--accent
 .link-cards.achado-cards .link-card small, .link-cards.achado-cards .link-card p { color: var(--ink); opacity: .85; }
 .link-cards.achado-cards .link-card .lc-ico { background: var(--ink); color: var(--orange); }
 .link-cards.achado-cards .link-card:hover { box-shadow: 7px 7px 0 var(--ink); }
-
-/* ---------- conta Google (opcional) ---------- */
-.account { position: relative; }
-.btn.small.acc-login { gap: 8px; height: 46px; box-shadow: var(--shadow); padding: 0 14px; }
-.btn .g-logo { width: 18px; height: 18px; flex: none; }
-.acc-chip { display: flex; align-items: center; gap: 8px; height: 46px; padding: 0 14px 0 6px; background: var(--white); color: var(--ink); border: var(--bw) solid var(--ink); border-radius: 10px; box-shadow: var(--shadow); font: inherit; font-weight: 800; cursor: pointer; transition: transform .1s, box-shadow .1s, background .1s; }
-.acc-chip:hover { background: var(--accent); transform: translate(-2px, -2px); box-shadow: var(--shadow-lg); }
-.acc-chip img, .acc-ini { width: 32px; height: 32px; border-radius: 7px; border: 2px solid var(--ink); object-fit: cover; }
-.acc-ini { display: grid; place-items: center; background: var(--accent); }
-.acc-menu { position: absolute; right: 0; top: 56px; z-index: 60; min-width: 240px; display: flex; flex-direction: column; gap: 4px; padding: 14px; background: var(--white); color: var(--ink); border: var(--bw) solid var(--ink); border-radius: 12px; box-shadow: var(--shadow-lg); }
-.acc-menu small { color: #3d444c; margin-bottom: 10px; word-break: break-all; }

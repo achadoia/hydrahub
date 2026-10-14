@@ -398,6 +398,53 @@ async function fromFramePerfect() {
   }];
 }
 
+// ---------- Destaques (curadoria do Achado IA) ----------
+// Ports de PS4 que viraram vídeo no canal; aparecem primeiro no app.
+function fromDestaques() {
+  const GUIA = 'https://docs.google.com/document/d/1fVDxx-ukuCQuGiKjxljJe9IjUxGz2qZBR_F34wDlmos/edit?usp=sharing';
+  console.log('> destaques');
+  return [
+    {
+      title: 'God of War III Remastered', year: 2015, platforms: ['ps4'], genres: ['ação'], featured: 1,
+      cover: 'assets/covers/gow3-cover.jpg', backdrop: 'assets/covers/gow3-backdrop.jpg',
+      description: 'Port de God of War III Remastered (PS4) pro Windows: o código x86-64 original roda direto no processador com um runtime próprio, e os gráficos usam o núcleo de vídeo do shadPS4 (Vulkan). Jogável do começo ao fim, com patch de 240 FPS, launcher e menu dentro do jogo.',
+      projects: [{ name: 'gow3_pc', repo: 'https://github.com/FelipePrado0/gow3_pc', method: 'recompilation', source: 'destaques' }],
+      ways: [{
+        kind: 'install', url: 'https://github.com/FelipePrado0/gow3_pc', repo: 'https://github.com/FelipePrado0/gow3_pc', needs: 'game', systems: ['windows', 'linux'],
+        project: 'gow3_pc', exeHint: ['Play God of War III.exe', 'God of War III.exe'], steps: [], source: 'destaques',
+        stepsFixedPt: [
+          'Você precisa da <b>sua cópia do jogo</b> tirada do seu PS4: CUSA01623, versão 1.02. Nenhum arquivo do jogo vem no port.',
+          'Clique em <b>Instalar</b>: o HydraHub baixa a release oficial do GitHub (gow3-windows.zip) e extrai pra você.',
+          'Copie a pasta <b>CUSA01623</b> do seu dump pra dentro da pasta do jogo (botão <b>Abrir pasta</b>).',
+          'Clique em <b>Jogar</b>. No launcher dá pra escolher resolução até 4K, limite de FPS e patches.',
+          'Dentro do jogo, <b>Insert</b> (ou R3 + L2 no controle) abre o menu do port.',
+        ],
+      }],
+      videos: [{ youtubeId: 'Q0GN0JvEXBw', title: 'God of War 3 Remastered now has a PC Port! - Setup Guide/Tutorial', author: 'IgorL - Emulation Guides', length: '8:04', from: 'youtube' }],
+      links: [{ name: 'GitHub do port', url: 'https://github.com/FelipePrado0/gow3_pc' }, { name: 'Guia completo (Achado IA)', url: GUIA }],
+    },
+    {
+      title: 'Shadow of the Colossus', featured: 2, platforms: ['ps4'],
+      cover: 'assets/covers/sotc-cover.jpg', backdrop: 'assets/covers/sotc-backdrop.jpg',
+      description: 'O remake de PS4 (2018) rodando no PC pelo Pink-shadPS4, um fork do shadPS4 otimizado pra Shadow of the Colossus, com launcher próprio. Também existe um port nativo de fã em andamento, com 60 FPS e saída em 4K; o guia do Achado IA mostra os dois caminhos.',
+      projects: [{ name: 'Pink-shadPS4', repo: 'https://github.com/luizgustavs/Pink-shadPS4', method: 'emulator', role: 'runs', source: 'destaques' }],
+      ways: [{
+        kind: 'install', url: 'https://github.com/luizgustavs/Pink-shadPS4', repo: 'https://github.com/luizgustavs/Pink-shadPS4', needs: 'game', systems: ['windows'],
+        project: 'Pink-shadPS4', steps: [], source: 'destaques',
+        stepsFixedPt: [
+          'Você precisa da <b>sua cópia do remake</b> tirada do seu PS4: CUSA08809. Nenhum arquivo do jogo vem no emulador.',
+          'Clique em <b>Instalar</b>: o HydraHub baixa a release oficial do Pink-shadPS4 e extrai pra você.',
+          'Coloque a pasta <b>CUSA08809</b> dentro de <b>games</b>, na pasta do emulador (botão <b>Abrir pasta</b>).',
+          'Clique em <b>Jogar</b>, escolha o jogo no launcher e mande ver nos colossos.',
+          'Se o jogo fechar na abertura com erro de memória, aumente o arquivo de paginação do Windows (o boot reserva uns 8 GB).',
+        ],
+      }],
+      videos: [{ youtubeId: 'P8gHxgtVxSY', title: 'Shadow of the Colossus Remake — Projeto: Port PC', author: 'Ajnc', length: '', from: 'youtube' }],
+      links: [{ name: 'Pink-shadPS4', url: 'https://github.com/luizgustavs/Pink-shadPS4' }, { name: 'Guia completo (Achado IA)', url: GUIA }],
+    },
+  ];
+}
+
 // ---------- Junção sem repetir ----------
 function slugify(t) { return titleKey(t).replace(/\s+/g, '-') || 'jogo'; }
 
@@ -408,7 +455,9 @@ function merge(sources) {
 
   const attach = (g, item) => {
     for (const p of item.platforms || []) if (p && !g.platforms.includes(p)) g.platforms.push(p);
-    for (const k of ['year', 'cover', 'backdrop', 'wiki', 'icon', 'category', 'noVideos']) if (!g[k] && item[k]) g[k] = item[k];
+    for (const k of ['year', 'cover', 'backdrop', 'wiki', 'icon', 'category', 'noVideos', 'featured']) if (!g[k] && item[k]) g[k] = item[k];
+    // curadoria manda na arte e no texto do jogo em destaque
+    if (item.featured) for (const k of ['cover', 'backdrop', 'description']) if (item[k]) g[k] = item[k];
     if (!g.description && item.description) g.description = item.description;
     if (!g.screenshots.length && item.screenshots?.length) g.screenshots = item.screenshots;
     for (const a of item.aliases || []) if (!g.aliases.includes(a)) g.aliases.push(a);
@@ -463,7 +512,7 @@ function merge(sources) {
     // jogo instalável primeiro, depois navegador; dentro disso, os mais populares
     g.ways.sort((a, b) => ({ install: 0, browser: 1, files: 2, source: 3 }[a.kind] ?? 4) - ({ install: 0, browser: 1, files: 2, source: 3 }[b.kind] ?? 4));
   }
-  games.sort((a, b) => (b.playable - a.playable) || (b.stars - a.stars) || a.title.localeCompare(b.title));
+  games.sort((a, b) => ((a.featured || 99) - (b.featured || 99)) || (b.playable - a.playable) || (b.stars - a.stars) || a.title.localeCompare(b.title));
   return games;
 }
 
@@ -494,7 +543,7 @@ async function translateSteps(games) {
     }
   }
   for (const g of games) {
-    if (g.description) g.descriptionPt = cache[g.description] || null;
+    if (g.description) g.descriptionPt = g.featured ? g.description : cache[g.description] || null;
     for (const w of g.ways) if (w.steps?.length) w.stepsPt = w.steps.map((s) => cache[s] || null);
   }
 }
@@ -569,10 +618,10 @@ async function checkLinks(games) {
 
 // ---------- main ----------
 const t0 = Date.now();
-const results = await Promise.allSettled([fromRecompGG(), fromAllRecomps(), fromRecompiledGames(), fromGithubLauncher(), fromWasmArcade(), fromFramePerfect()]);
-const [rgg, ar, rcg, gl, wa, fp] = results.map((r) => (r.status === 'fulfilled' ? r.value : (console.warn(r.reason), [])));
+const results = await Promise.allSettled([fromRecompGG(), fromAllRecomps(), fromRecompiledGames(), fromGithubLauncher(), fromWasmArcade(), fromFramePerfect(), fromDestaques()]);
+const [rgg, ar, rcg, gl, wa, fp, dq] = results.map((r) => (r.status === 'fulfilled' ? r.value : (console.warn(r.reason), [])));
 // ordem importa: recomp.gg (mais rico) define o jogo; os outros completam
-const games = merge([rgg, gl, ar, rcg, wa, fp]);
+const games = merge([rgg, gl, ar, rcg, wa, fp, dq]);
 await translateSteps(games);
 await findVideos(games);
 await checkLinks(games);
@@ -587,7 +636,7 @@ if (previous && games.length < previous.games.length * 0.6) {
 const catalog = {
   version: 1,
   generatedAt: new Date().toISOString(),
-  counts: { games: games.length, playable: games.filter((g) => g.playable).length, browserOnline: games.filter((g) => g.browserOnline).length, recompgg: rgg.length, allrecomps: ar.length, recompiledgames: rcg.length, githublauncher: gl.length, wasmarcade: wa.length, emuladores: fp.length },
+  counts: { games: games.length, playable: games.filter((g) => g.playable).length, browserOnline: games.filter((g) => g.browserOnline).length, recompgg: rgg.length, allrecomps: ar.length, recompiledgames: rcg.length, githublauncher: gl.length, wasmarcade: wa.length, emuladores: fp.length, destaques: dq.length },
   games,
 };
 await fs.writeFile(OUT, JSON.stringify(catalog));

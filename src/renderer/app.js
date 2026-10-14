@@ -34,42 +34,6 @@ function renderAchado() {
     <div class="achado-links">${ACHADO.map((l) => `<a href="${l.url}" title="${l.label}${l.handle ? ` ${l.handle}` : ''}">${icon(l.icon)}</a>`).join('')}</div>`;
 }
 
-const GOOGLE_G = '<svg class="g-logo" viewBox="0 0 24 24"><path fill="#EA4335" d="M12 10.2v3.9h5.5c-.2 1.3-1.6 3.8-5.5 3.8-3.3 0-6-2.7-6-6.1s2.7-6.1 6-6.1c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.8 3.2 14.6 2.2 12 2.2 6.6 2.2 2.2 6.6 2.2 12s4.4 9.8 9.8 9.8c5.6 0 9.4-4 9.4-9.6 0-.6-.1-1.1-.2-1.6H12z"/></svg>';
-
-// ---------- conta Google (opcional: nada no app exige login) ----------
-function renderAccount() {
-  const box = $('#account');
-  const acc = state.account;
-  if (acc) {
-    const first = esc((acc.name || '').split(' ')[0]);
-    box.innerHTML = `<button class="acc-chip" id="acc-chip" title="${esc(acc.email)}">${acc.picture ? `<img src="${esc(acc.picture)}" alt="" referrerpolicy="no-referrer">` : `<span class="acc-ini">${first.slice(0, 1)}</span>`}<span>${first}</span></button>
-      <div class="acc-menu" id="acc-menu" hidden><b>${esc(acc.name)}</b><small>${esc(acc.email)}</small><button class="btn small danger" id="acc-out">Sair</button></div>`;
-    $('#acc-chip').addEventListener('click', (e) => { e.stopPropagation(); $('#acc-menu').hidden = !$('#acc-menu').hidden; });
-    $('#acc-out').addEventListener('click', logout);
-  } else {
-    box.innerHTML = `<button class="btn small acc-login" id="acc-in" title="Opcional: o HydraHub funciona sem conta">${GOOGLE_G}<span>Entrar</span></button>`;
-    $('#acc-in').addEventListener('click', login);
-  }
-}
-async function login() {
-  if (!state.accountAvailable) { toast('Login com Google ainda não está disponível nesta versão.', 'info'); return; }
-  $$('#acc-in, #set-login').forEach((b) => { b.disabled = true; b.lastElementChild.textContent = 'Abrindo o navegador…'; });
-  toast('Termine o login no navegador. Se desistir, é só fechar a aba: o app continua funcionando.', 'info', 7000);
-  const r = await window.hydra.login();
-  if (r.ok) { state.account = r.account; toast(`Bem-vindo, ${r.account.name.split(' ')[0]}!`, 'ok'); }
-  else if (r.error !== 'cancelled') toast(r.error === 'timeout' ? 'O login expirou. Tente de novo quando quiser.' : `Não consegui entrar: ${r.error}`, 'error', 6000);
-  renderAccount();
-  if (location.hash.startsWith('#/config')) route();
-}
-async function logout() {
-  await window.hydra.logout();
-  state.account = null;
-  toast('Você saiu da conta. Tudo continua funcionando normalmente.', 'info');
-  renderAccount();
-  if (location.hash.startsWith('#/config')) route();
-}
-document.addEventListener('click', (e) => { if (!e.target.closest('#account')) { const m = $('#acc-menu'); if (m) m.hidden = true; } });
-
 // ---------- estado ----------
 const state = {
   catalog: null, games: [], byId: new Map(), installed: {}, settings: {}, downloads: new Map(), info: {},
@@ -158,7 +122,8 @@ document.addEventListener('click', (e) => {
 
 // ---------- INÍCIO ----------
 function heroGames() {
-  return state.games.filter((g) => g.playable && g.backdrop && g.kinds.includes('install')).slice(0, 8);
+  const all = state.games.filter((g) => g.playable && g.backdrop && g.kinds.includes('install'));
+  return [...all.filter((g) => g.featured).sort((a, b) => a.featured - b.featured), ...all.filter((g) => !g.featured)].slice(0, 8);
 }
 function recentGames() {
   const latest = (g) => g.ways.reduce((m, w) => Math.max(m, w.release?.publishedAt ? Date.parse(w.release.publishedAt) : 0), 0);
@@ -483,7 +448,7 @@ async function renderInstallState(g, iw) {
     <div class="assets">${latest.assets.map((a) => `<div class="asset ${best && a.url === best.url ? 'best' : ''}">${icon(best && a.url === best.url ? 'check' : 'download')}<span class="n">${esc(a.name)}</span><span class="s">${fmtBytes(a.size)}</span><a class="btn small ghost" href="${esc(a.url)}">Baixar</a></div>`).join('')}</div>
     ${latest.body ? `<details style="margin-top:10px"><summary class="muted" style="cursor:pointer;font-size:13px">Notas da versão</summary><div class="release-notes">${esc(latest.body)}</div></details>` : ''}
   </div>`;
-  bindInstallButtons(g, repo, latest, best);
+  bindInstallButtons(g, repo, latest, best, iw.exeHint);
 }
 // Emuladores com download direto: versão consultada ao vivo na API do site
 async function renderDirectInstall(g, iw, inst, extra) {
@@ -643,7 +608,6 @@ async function pageSettings() {
   view.innerHTML = `
     <div class="page-head"><div><h1>Configurações</h1><p>HydraHub ${esc(state.info.version || '')} · catálogo de ${fmtDate(state.catalog?.generatedAt)} (${state.catalogOrigin || ''})</p></div></div>
     <div class="settings card">
-      <div class="set-row"><div class="l"><b>Conta Google (opcional)</b><span>${state.account ? `Conectado como ${esc(state.account.name)} (${esc(state.account.email)}).` : 'Você não precisa de conta pra usar o HydraHub. Entrar com o Google é só se quiser.'}</span></div>${state.account ? '<button class="btn small danger" id="set-logout">Sair</button>' : `<button class="btn small" id="set-login">${GOOGLE_G}<span>Entrar com Google</span></button>`}</div>
       <div class="set-row"><div class="l"><b>Pasta de instalação</b><span id="dir">${esc(s.installDir)}</span></div><button class="btn small" id="pick">${icon('folder')}Alterar</button></div>
       <div class="set-row"><div class="l"><b>Token do GitHub (opcional)</b><span>Sem token o GitHub libera 60 consultas por hora. <a href="https://github.com/settings/tokens">Crie um token</a> sem nenhuma permissão e cole aqui.</span></div><input class="input" id="token" type="password" placeholder="ghp_…" value="${esc(s.githubToken)}"></div>
       <div class="set-row"><div class="l"><b>Incluir versões de teste (pre-release)</b><span>Mostra builds beta quando forem as mais novas.</span></div><label class="switch"><input type="checkbox" id="pre" ${s.includePrerelease ? 'checked' : ''}><span></span></label></div>
@@ -652,8 +616,6 @@ async function pageSettings() {
     <p class="muted" style="font-size:12px;margin-top:20px;max-width:760px">O HydraHub só aponta e baixa projetos open source dos repositórios oficiais. Nenhuma ROM ou arquivo de jogo é distribuído. Nomes e marcas pertencem aos seus donos.</p>`;
   $('#pick').addEventListener('click', async () => { const d = await window.hydra.pickDir(); if (d) { state.settings = await window.hydra.setSettings({ installDir: d }); $('#dir').textContent = d; toast('Pasta salva.', 'ok'); } });
   $('#token').addEventListener('change', async (e) => { state.settings = await window.hydra.setSettings({ githubToken: e.target.value.trim() }); toast('Token salvo.', 'ok'); });
-  $('#set-login')?.addEventListener('click', login);
-  $('#set-logout')?.addEventListener('click', logout);
   $('#pre').addEventListener('change', async (e) => { state.settings = await window.hydra.setSettings({ includePrerelease: e.target.checked }); });
   $('#refresh').addEventListener('click', () => loadCatalog(true));
 }
@@ -719,7 +681,6 @@ $('#btn-refresh').addEventListener('click', () => loadCatalog(true));
 (async () => {
   view.innerHTML = `<div class="home"><div><div class="skeleton" style="height:290px"></div><div class="quick">${'<div class="skeleton" style="height:120px"></div>'.repeat(3)}</div></div><div class="skeleton" style="height:520px"></div></div>`;
   renderAchado();
-  window.hydra.account().then(({ account, available }) => { state.account = account; state.accountAvailable = available; renderAccount(); });
   [state.installed, state.settings, state.info] = await Promise.all([window.hydra.installed(), window.hydra.getSettings(), window.hydra.info()]);
   await loadCatalog(false);
 })();

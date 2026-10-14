@@ -2,12 +2,21 @@
 
 <h1 align="center">HydraHub</h1>
 <p align="center"><b>Tutoriais · Links · Jogos recompilados</b><br>Seu hub de recomps, tudo em um só lugar.</p>
+<p align="center"><a href="https://www.virustotal.com/gui/file/4a7e55ea3876120c500eecc3d580d8d619a86773b3cf8865be5a4fa47549e2cb"><img src="https://img.shields.io/badge/VirusTotal-0%2F67%20sem%20v%C3%ADrus-2ea44f?logo=virustotal&logoColor=white&style=for-the-badge" alt="VirusTotal: 0 de 67 antivírus detectaram algo"></a></p>
 
 O HydraHub é um app desktop (Electron) no estilo do Hydra, feito só para **recomps, decomps e ports**: ele junta o catálogo de cinco fontes, mostra **um jogo por página** (sem repetir), com tutorial em português, imagens, vídeos e o **botão Instalar** que baixa a release oficial do GitHub, extrai e deixa pronto para jogar.
 
 ## Baixar
 
 Pegue o **`HydraHub-Setup-x.y.z.exe`** na página de [Releases](https://github.com/achadoia/hydrahub/releases/latest) e instale. O Windows pode mostrar o aviso do SmartScreen (app sem assinatura): clique em *Mais informações → Executar assim mesmo*.
+
+### Sem vírus: verificado no VirusTotal
+
+O instalador **HydraHub-Setup-1.0.2.exe** passou por **67 antivírus no VirusTotal e nenhum encontrou nada (0/67)**. O aviso do SmartScreen aparece só porque o app ainda não tem assinatura digital paga, não por ter vírus. [Veja o relatório completo](https://www.virustotal.com/gui/file/4a7e55ea3876120c500eecc3d580d8d619a86773b3cf8865be5a4fa47549e2cb).
+
+<a href="https://www.virustotal.com/gui/file/4a7e55ea3876120c500eecc3d580d8d619a86773b3cf8865be5a4fa47549e2cb"><img src="docs/prints/virustotal.png" alt="Relatório do VirusTotal: nenhum dos 67 antivírus marcou o HydraHub-Setup-1.0.2.exe"></a>
+
+SHA-256: `4a7e55ea3876120c500eecc3d580d8d619a86773b3cf8865be5a4fa47549e2cb`
 
 ## Prints
 

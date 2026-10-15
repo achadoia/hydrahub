@@ -940,7 +940,7 @@ async function pageSettings() {
       <div class="set-row"><div class="l"><b>Token do GitHub (opcional)</b><span>Sem token o GitHub libera 60 consultas por hora. <a href="https://github.com/settings/tokens">Crie um token</a> sem nenhuma permissão e cole aqui.</span></div><input class="input" id="token" type="password" placeholder="ghp_…" value="${esc(s.githubToken)}"></div>
       <div class="set-row"><div class="l"><b>Atualizar jogos sozinho</b><span>Quando sair release nova de um jogo instalado, o HydraHub baixa e atualiza ao abrir. Saves e arquivos seus na pasta continuam lá.</span></div><label class="switch"><input type="checkbox" id="auto-games" ${s.autoUpdateGames !== false ? 'checked' : ''}><span></span></label></div>
       <div class="set-row"><div class="l"><b>Incluir versões de teste (pre-release)</b><span>Mostra builds beta quando forem as mais novas.</span></div><label class="switch"><input type="checkbox" id="pre" ${s.includePrerelease ? 'checked' : ''}><span></span></label></div>
-      <div class="set-row"><div class="l"><b>Atualizar catálogo agora</b><span>O catálogo é regenerado todo dia no GitHub e baixado sozinho a cada ${s.autoRefreshHours}h.</span></div><button class="btn small" id="refresh">${icon('refresh')}Atualizar</button></div>
+      <div class="set-row"><div class="l"><b>Atualizar catálogo agora</b><span>O catálogo é regenerado todo dia no GitHub e baixado sozinho toda vez que o HydraHub abre.</span></div><button class="btn small" id="refresh">${icon('refresh')}Atualizar</button></div>
     </div>
     <p class="muted" style="font-size:12px;margin-top:20px;max-width:760px">O HydraHub só aponta e baixa projetos open source dos repositórios oficiais. Nenhuma ROM ou arquivo de jogo é distribuído. Nomes e marcas pertencem aos seus donos.</p>`;
   $('#pick').addEventListener('click', async () => { const d = await window.hydra.pickDir(); if (d) { state.settings = await window.hydra.setSettings({ installDir: d }); $('#dir').textContent = d; toast('Pasta salva.', 'ok'); } });
@@ -1016,6 +1016,24 @@ async function loadExtras(force) {
 }
 $('#btn-refresh').addEventListener('click', () => { loadCatalog(true); loadExtras(true); });
 
+// toda abertura do app busca o catálogo e os extras no GitHub, em segundo plano: o cache aparece na hora
+// e, se o remoto for mais novo, a tela é atualizada sem precisar atualizar o app em si
+async function syncOnline() {
+  try {
+    const before = state.catalog?.generatedAt || '';
+    const { catalog, origin } = await window.hydra.getCatalog({ force: true });
+    if (origin === 'online' && catalog?.games && (catalog.generatedAt || '') > before) {
+      state.catalog = catalog;
+      state.games = catalog.games;
+      state.byId = new Map(catalog.games.map((g) => [g.id, g]));
+      state.catalogOrigin = 'online';
+      toast(`Catálogo atualizado: ${catalog.games.length} jogos.`, 'ok');
+      route();
+    } else if (origin === 'online') state.catalogOrigin = 'online';
+  } catch (e) { console.warn('sync do catálogo falhou:', e); }
+  try { await loadExtras(true); } catch (e) { console.warn('sync dos extras falhou:', e); }
+}
+
 (async () => {
   view.innerHTML = `<div class="home"><div><div class="skeleton" style="height:290px"></div><div class="quick">${'<div class="skeleton" style="height:120px"></div>'.repeat(3)}</div></div><div class="skeleton" style="height:520px"></div></div>`;
   renderAchado();
@@ -1023,6 +1041,7 @@ $('#btn-refresh').addEventListener('click', () => { loadCatalog(true); loadExtra
   await loadCatalog(false);
   loadExtras(false);
   autoUpdateGames();
+  syncOnline();
 })();
 
 // jogos instalados se atualizam sozinhos quando sai release nova (o que está na pasta e não veio no zip, como saves e o dump, fica)

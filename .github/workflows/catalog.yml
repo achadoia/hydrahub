@@ -33,6 +33,10 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scraper/build-repos.mjs
+      - name: O que cada jogo pede (ROM/ISO, região, versão, hash) lendo o README dos projetos
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: node scraper/build-requirements.mjs
       - name: Downloads dos jogos (rankings da semana, do mês e de sempre)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

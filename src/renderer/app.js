@@ -314,6 +314,43 @@ function pageGames(arg) {
 }
 
 // ---------- PÁGINA DO JOGO (tutorial completo) ----------
+// o que o jogo pede do jogador, extraído do README do projeto (catalog/requirements.json)
+function gameReq(g, w = primaryInstallWay(g)) {
+  const repo = repoOf(w?.repo || w?.url);
+  return (repo && state.reqs?.[repo.toLowerCase()]) || null;
+}
+const reqNeedsFile = (r) => !!r && (r.precisa === 'rom' || r.precisa === 'arquivos');
+function reqHtml(r, g) {
+  const rows = [
+    r.regiao && ['Região', esc(r.regiao)],
+    r.versao && ['Versão', esc(r.versao)],
+    r.formatos?.length && ['Formato', r.formatos.map((f) => `<code>${esc(f)}</code>`).join(' ')],
+    r.nomeArquivo && ['Nome do arquivo', `<code>${esc(r.nomeArquivo)}</code>`],
+    r.hash?.valor && [esc(r.hash.tipo || 'Hash'), `<code class="hash" title="Clique pra copiar">${esc(r.hash.valor)}</code>`],
+  ].filter(Boolean);
+  return `<div class="callout warn req">${icon('cartridge')}<div>
+    <p><b>${r.precisa === 'arquivos' ? 'Você precisa dos arquivos do seu jogo original' : 'Você precisa da ROM/imagem do seu jogo'}:</b> ${esc(r.arquivo || g.title)}.</p>
+    ${rows.length ? `<div class="req-grid">${rows.map(([k, v]) => `<span>${k}</span><b>${v}</b>`).join('')}</div>` : ''}
+    ${r.comoUsar ? `<p><b>Como usar:</b> ${esc(r.comoUsar)}</p>` : ''}
+    ${r.obs ? `<p>${esc(r.obs)}</p>` : ''}
+    <p class="small">O HydraHub instala o jogo, mas não fornece ROM nem arquivos. ${r.hash?.valor ? 'O hash serve pra conferir se a sua cópia é exatamente a certa. ' : ''}<a href="#/tutorial/dump-rom">Como fazer o dump da sua cópia</a>.</p>
+  </div></div>`;
+}
+// antes de abrir pela 1ª vez, mostra exatamente o arquivo que o jogo vai pedir
+function reqModal(g, r) {
+  return new Promise((resolve) => {
+    const el = document.createElement('div');
+    el.className = 'modal-bg';
+    el.innerHTML = `<div class="modal"><h3>Antes de abrir ${esc(g.title)}</h3>${reqHtml(r, g)}
+      <div class="modal-actions"><button class="btn primary" data-ok>${icon('play')}Tenho o arquivo, abrir</button><button class="btn ghost" data-no>Agora não</button></div></div>`;
+    const close = (v) => { el.remove(); resolve(v); };
+    el.addEventListener('click', (e) => { if (e.target === el || e.target.closest('[data-no]')) close(false); else if (e.target.closest('[data-ok]')) close(true); });
+    document.body.append(el);
+  });
+}
+// copiar hash com um clique (página do jogo e modal)
+document.addEventListener('click', (e) => { const h = e.target.closest('code.hash'); if (h) navigator.clipboard.writeText(h.textContent).then(() => toast('Hash copiado.', 'ok')); });
+
 function primaryInstallWay(g) {
   return g.ways.find((w) => w.kind === 'install' && w.direct) || g.ways.find((w) => w.kind === 'install' && repoOf(w.repo || w.url)) || null;
 }
@@ -324,7 +361,8 @@ function pageGame(id) {
   const iw = primaryInstallWay(g);
   const browser = g.ways.find((w) => w.kind === 'browser' && w.alive !== false);
   const deadBrowser = !browser && g.ways.some((w) => w.kind === 'browser');
-  const needsRom = g.ways.some((w) => ['rom', 'files', 'game'].includes(w.needs)) || g.ways.some((w) => (w.steps || []).some((s) => /\b(rom|your own copy|game files|dump)\b/i.test(s)));
+  const req = gameReq(g, iw);
+  const needsRom = req ? reqNeedsFile(req) : g.ways.some((w) => ['rom', 'files', 'game'].includes(w.needs)) || g.ways.some((w) => (w.steps || []).some((s) => /\b(rom|iso|disc image|your own copy|game files|dump)\b/i.test(s)));
   const stepsWay = g.ways.find((w) => w.steps?.length && w.kind === 'install') || g.ways.find((w) => w.steps?.length);
   const desc = g.descriptionPt || g.description;
   const methods = [...new Set(g.projects.map((p) => METHOD[p.method] || p.method).filter(Boolean))];
@@ -374,7 +412,9 @@ function pageGame(id) {
     <article class="tut">
       ${desc ? `<p class="lead">${esc(desc)}</p>` : ''}
       ${sec('Antes de começar')}
-      ${needsRom ? `<div class="callout warn">${icon('cartridge')}<p><b>Você precisa da sua cópia do jogo.</b> O HydraHub instala o recomp, mas não fornece ROM nem arquivos do jogo. Veja <a href="#/tutorial/dump-rom">como fazer o dump do seu cartucho ou disco</a>.</p></div>` : ''}
+      ${req && needsRom ? reqHtml(req, g) : ''}
+      ${req?.precisa === 'nada' ? `<div class="callout">${icon('check')}<p><b>Não precisa de ROM.</b> Segundo o projeto, ele já vem pronto pra jogar.</p></div>` : ''}
+      ${!req && needsRom ? `<div class="callout warn">${icon('cartridge')}<p><b>Você precisa da sua cópia do jogo.</b> O HydraHub instala o recomp, mas não fornece ROM nem arquivos do jogo. Veja <a href="#/tutorial/dump-rom">como fazer o dump do seu cartucho ou disco</a>.</p></div>` : ''}
       ${iw && !iw.direct ? `<div class="callout">${icon('info')}<p><b>Requisitos:</b> placa de vídeo com Vulkan ou Direct3D 12 e o Visual C++ Redistributable. <a href="#/tutorial/requisitos">Veja o guia de preparação do PC</a>.</p></div>` : ''}
       ${deadBrowser ? `<div class="callout warn off">${icon('alert')}<p><b>Versão de navegador fora do ar.</b> No último teste (${fmtDate(g.ways.find((w) => w.kind === 'browser').checkedAt)}) os links de navegador deste jogo não responderam. O HydraHub testa de novo todo dia.</p></div>` : ''}
       ${g.ways.filter((w) => w.externalHost).map((w) => `<div class="callout warn">${icon('alert')}<p><b>Roda num servidor de terceiros.</b> A versão de navegador de ${esc(w.project || 'este port')} carrega de <code>${esc(w.externalHost)}</code>, que não é controlado pelo HydraHub nem pelo site que lista o jogo. Pode ficar lento ou sair do ar. Nunca instale nada que essa página pedir.</p></div>`).join('')}
@@ -507,6 +547,8 @@ function bindInstallButtons(g, repo, latest, best, exeHint) {
     if (!r.ok && r.error !== 'Cancelado.') toast(`Falhou: ${r.error}`, 'error', 7000);
   });
   $('#btn-play')?.addEventListener('click', async () => {
+    const req = gameReq(g);
+    if (reqNeedsFile(req) && !state.installed[g.id]?.lastPlayed && !(await reqModal(g, req))) return;
     const r = await window.hydra.launch(g.id);
     if (r.ok) toast(`Abrindo ${g.title}…`, 'ok'); else toast(r.error, 'error');
   });
@@ -857,11 +899,12 @@ async function loadCatalog(force = false) {
   route();
 }
 async function loadExtras(force) {
-  const [repos, stats] = await Promise.all([window.hydra.getData('repos', { force }), window.hydra.getData('stats', { force })]);
+  const [repos, stats, reqs] = await Promise.all([window.hydra.getData('repos', { force }), window.hydra.getData('stats', { force }), window.hydra.getData('requirements', { force })]);
+  if (reqs?.repos) state.reqs = reqs.repos;
   if (repos?.repos) { state.repos = repos; state.repoByFull = new Map(repos.repos.map((r) => [r.full.toLowerCase(), r])); }
   if (stats?.games) state.stats = stats;
   const page = (location.hash.split('/')[1] || 'inicio').split('?')[0];
-  if (['inicio', '', 'repos', 'repo', 'jogos'].includes(page)) route(); else renderNav(page);
+  if (['inicio', '', 'repos', 'repo', 'jogos', 'jogo'].includes(page)) route(); else renderNav(page);
 }
 $('#btn-refresh').addEventListener('click', () => { loadCatalog(true); loadExtras(true); });
 

@@ -178,7 +178,7 @@ ipcMain.handle('catalog:get', async (_e, { force } = {}) => {
 });
 
 // ---------- dados extras: repositórios e rankings de downloads (mesma lógica do catálogo) ----------
-const DATA_FILES = { repos: 'repos.json', stats: 'stats.json' };
+const DATA_FILES = { repos: 'repos.json', stats: 'stats.json', requirements: 'requirements.json' };
 ipcMain.handle('data:get', async (_e, name, { force } = {}) => {
   const file = DATA_FILES[name];
   if (!file) return null;
@@ -378,7 +378,7 @@ function runWiiCompiledBuild(gameId, exe, image) {
     child.on('close', (code) => {
       active.delete(gameId);
       if (controller.signal.aborted) { send('download:progress', { gameId, phase: 'cancelled' }); return resolve({ ok: false, error: 'Cancelado.' }); }
-      if (code === 0 && (!result || result.success !== false)) return resolve({ ok: true });
+      if (code === 0 && (!result || result.success !== false)) return resolve({ ok: true, installDir: result?.installDir });
       const error = (result && result.error) || lastErr || `o Setup saiu com código ${code}`;
       send('download:progress', { gameId, phase: 'error', error });
       resolve({ ok: false, error: `Falhou ao compilar: ${error}` });
@@ -407,15 +407,29 @@ async function launchWiiCompiled(gameId, info) {
     const b = await runWiiCompiledBuild(gameId, exe, r.filePaths[0]);
     if (!b.ok) return b;
     const installed = getInstalled();
-    if (installed[gameId]) { installed[gameId].built = true; writeJson(INSTALLED_FILE, installed); }
+    if (installed[gameId]) { installed[gameId].built = true; installed[gameId].wiiDir = b.installDir || null; writeJson(INSTALLED_FILE, installed); }
+    info = { ...info, wiiDir: b.installDir };
     send('download:progress', { gameId, phase: 'done', built: true });
   }
-  const child = spawn(exe, ['--launch-base'], { cwd: path.dirname(exe), detached: true, stdio: 'ignore', windowsHide: true });
+  // o --launch-base usa a pasta do próprio exe como instalação: tem que ser a cópia que o Setup deixou lá
+  const wiiDir = info.wiiDir || path.join(process.env.LOCALAPPDATA || app.getPath('appData'), 'Programs', 'WiiCompiled');
+  const launcher = path.join(wiiDir, 'WiiCompiled-Setup.exe');
+  if (!fs.existsSync(launcher)) {
+    const installed = getInstalled();
+    if (installed[gameId]) { installed[gameId].built = false; writeJson(INSTALLED_FILE, installed); }
+    return { ok: false, error: 'A compilação do Mario Kart Wii não foi encontrada. Clique em Jogar de novo pra compilar.' };
+  }
+  const child = spawn(launcher, ['--launch-base'], { cwd: wiiDir, detached: true, stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true });
+  let errText = '';
+  child.stderr.on('data', (d) => { errText += d.toString(); });
   child.on('error', (err) => send('toast', { type: 'error', text: `Não abriu: ${err.message}` }));
   const startedAt = Date.now();
   child.on('exit', (code) => {
     // --launch-base espera o jogo fechar; só é erro de abertura se morreu logo de cara
-    if (code && Date.now() - startedAt < 15000) send('toast', { type: 'error', text: 'O WiiCompiled não abriu. Se a compilação foi apagada, desinstale e instale de novo.' });
+    if (code && Date.now() - startedAt < 15000) {
+      const why = errText.trim().split(/[\r\n]+/).filter(Boolean).pop();
+      send('toast', { type: 'error', text: `O WiiCompiled não abriu${why ? `: ${why}` : '.'}` });
+    }
   });
   child.unref();
   const installed = getInstalled();

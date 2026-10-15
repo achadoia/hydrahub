@@ -520,8 +520,8 @@ function drawProgress(g, d) {
   const actions = $('#actions');
   if (!actions || location.hash !== `#/jogo/${g.id}`) return;
   const pct = d.total ? Math.min(100, (d.received / d.total) * 100) : 0;
-  const label = d.phase === 'extract' ? 'Extraindo arquivos…' : d.phase === 'start' ? 'Iniciando download…' : `${fmtBytes(d.received)} de ${fmtBytes(d.total)}${d.speed ? ` · ${fmtBytes(d.speed)}/s` : ''}`;
-  actions.innerHTML = `<div class="progress"><div class="track"><div class="fill ${d.phase === 'extract' || !d.total ? 'indet' : ''}" style="width:${pct}%"></div></div><div class="meta"><span>${label}</span><span>${d.total && d.phase === 'download' ? `${pct.toFixed(0)}%` : ''}</span></div></div>
+  const label = d.phase === 'build' ? `Compilando o jogo (só na 1ª vez): ${esc(d.message || '')}` : d.phase === 'extract' ? 'Extraindo arquivos…' : d.phase === 'start' ? 'Iniciando download…' : `${fmtBytes(d.received)} de ${fmtBytes(d.total)}${d.speed ? ` · ${fmtBytes(d.speed)}/s` : ''}`;
+  actions.innerHTML = `<div class="progress"><div class="track"><div class="fill ${d.phase === 'extract' || !d.total ? 'indet' : ''}" style="width:${pct}%"></div></div><div class="meta"><span>${label}</span><span>${d.total && (d.phase === 'download' || d.phase === 'build') ? `${pct.toFixed(0)}%` : ''}</span></div></div>
     <button class="btn small" id="btn-cancel">${icon('x')}Cancelar</button>`;
   $('#btn-cancel').addEventListener('click', () => window.hydra.cancel(g.id));
 }
@@ -533,7 +533,7 @@ window.hydra.onProgress(async (p) => {
   if (p.phase === 'done' || p.phase === 'error' || p.phase === 'cancelled') {
     state.downloads.delete(p.gameId);
     state.installed = await window.hydra.installed();
-    if (p.phase === 'done') toast(`${g?.title || 'Jogo'} instalado! Clique em Jogar.`, 'ok', 6000);
+    if (p.phase === 'done') toast(p.built ? `${g?.title || 'Jogo'} compilado! Abrindo…` : `${g?.title || 'Jogo'} instalado! Clique em Jogar.`, 'ok', 6000);
     if (p.phase === 'cancelled') toast('Download cancelado.', 'info');
     if (location.hash === `#/jogo/${p.gameId}`) route();
     else renderNav((location.hash.split('/')[1]) || 'inicio');
@@ -552,7 +552,7 @@ function drawDownloadsPanel() {
   const items = [...state.downloads.entries()];
   $('#downloads-panel').innerHTML = `<h4>Downloads</h4>${items.length ? items.map(([id, d]) => {
     const pct = d.total ? Math.min(100, (d.received / d.total) * 100) : 0;
-    return `<div class="dl-item">${d.cover ? `<img src="${esc(d.cover)}">` : '<img>'}<div style="flex:1;min-width:0"><div class="t">${esc(d.title)}</div><div class="progress"><div class="track"><div class="fill ${d.phase !== 'download' ? 'indet' : ''}" style="width:${pct}%"></div></div><div class="meta"><span>${d.phase === 'extract' ? 'Extraindo…' : `${fmtBytes(d.received)} / ${fmtBytes(d.total)}`}</span><a href="#/jogo/${id}">ver</a></div></div></div></div>`;
+    return `<div class="dl-item">${d.cover ? `<img src="${esc(d.cover)}">` : '<img>'}<div style="flex:1;min-width:0"><div class="t">${esc(d.title)}</div><div class="progress"><div class="track"><div class="fill ${d.phase !== 'download' && d.phase !== 'build' ? 'indet' : ''}" style="width:${pct}%"></div></div><div class="meta"><span>${d.phase === 'extract' ? 'Extraindo…' : d.phase === 'build' ? `Compilando… ${pct.toFixed(0)}%` : `${fmtBytes(d.received)} / ${fmtBytes(d.total)}`}</span><a href="#/jogo/${id}">ver</a></div></div></div></div>`;
   }).join('') : '<p class="muted" style="margin:0">Nenhum download em andamento.</p>'}`;
 }
 $('#btn-downloads').addEventListener('click', () => { const p = $('#downloads-panel'); p.hidden = !p.hidden; if (!p.hidden) drawDownloadsPanel(); });

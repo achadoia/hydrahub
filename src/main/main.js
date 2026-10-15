@@ -67,6 +67,30 @@ function createWindow() {
   // links externos abrem no navegador padrão
   win.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:/.test(url)) shell.openExternal(url); return { action: 'deny' }; });
   win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith('app://')) { e.preventDefault(); shell.openExternal(url); } });
+  // HYDRA_REC=roteiro.json → roda cada cena (rota + passos de JS) e imprime os tempos pra cortar a gravação de tela
+  if (process.env.HYDRA_REC) {
+    const { cenas } = JSON.parse(fs.readFileSync(process.env.HYDRA_REC, 'utf8'));
+    win.setBounds({ x: 0, y: 0, width: 1280, height: 720 });
+    win.setAlwaysOnTop(true);
+    win.webContents.once('did-finish-load', async () => {
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      await wait(4000);
+      for (const c of cenas) {
+        await win.webContents.executeJavaScript(`location.hash=${JSON.stringify(c.rota)}`);
+        await wait(c.espera ?? 2500);
+        const t0 = Date.now();
+        for (const p of c.passos || []) {
+          const falta = p.em - (Date.now() - t0);
+          if (falta > 0) await wait(falta);
+          await win.webContents.executeJavaScript(p.js).catch(() => {});
+        }
+        const resto = c.dur - (Date.now() - t0);
+        if (resto > 0) await wait(resto);
+        console.log('REC>', c.nome, t0, Date.now());
+      }
+      app.quit();
+    });
+  }
   // HYDRA_SHOT="pasta;#/inicio,#/jogos" → salva prints das rotas e fecha (verificação visual)
   if (process.env.HYDRA_SHOT) {
     const [dir, ...rest] = process.env.HYDRA_SHOT.split(';'); const routes = rest.join(';');
@@ -77,6 +101,7 @@ function createWindow() {
       for (const [i, r] of routes.split(',').entries()) {
         if (r.startsWith('wait:')) { await wait(+r.slice(5) * 1000); continue; }
         if (r.startsWith('js:')) { console.log('JS>', JSON.stringify(await win.webContents.executeJavaScript(r.slice(3)))); continue; }
+        if (r.startsWith('shot:')) { fs.writeFileSync(path.join(dir, `${i}-${r.slice(5)}.png`), (await win.webContents.capturePage()).toPNG()); continue; }
         await win.webContents.executeJavaScript(`location.hash=${JSON.stringify(r)}`);
         await wait(4000);
         const img = await win.webContents.capturePage();
@@ -323,9 +348,77 @@ ipcMain.handle('game:installed', () => {
   return installed;
 });
 
+// WiiCompiled (Mario Kart Wii) não tem janela: o Setup é uma linha de comando que compila o jogo a
+// partir da imagem do disco do usuário (--silent --game) e depois abre com --launch-base.
+const isWiiCompiledSetup = (info) => /^wiicompiled-setup.*\.exe$/i.test(info.asset || path.basename(info.exe || ''));
+
+function runWiiCompiledBuild(gameId, exe, image) {
+  const controller = new AbortController();
+  active.set(gameId, { controller });
+  send('download:progress', { gameId, phase: 'build', received: 0, total: 100, message: 'Preparando compilação…' });
+  return new Promise((resolve) => {
+    const child = spawn(exe, ['--silent', '--game', image, '--progress-json'], { cwd: path.dirname(exe), windowsHide: true });
+    controller.signal.addEventListener('abort', () => child.kill());
+    let buf = '', result = null, lastErr = '';
+    child.stdout.on('data', (d) => {
+      buf += d.toString();
+      let i;
+      while ((i = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
+        if (!line) continue;
+        try {
+          const m = JSON.parse(line);
+          if (m.type === 'progress') send('download:progress', { gameId, phase: 'build', received: m.percent || 0, total: 100, message: m.message || m.stage });
+          else if (m.type === 'result') result = m;
+        } catch { /* linha que não é JSON */ }
+      }
+    });
+    child.stderr.on('data', (d) => { const l = d.toString().trim().split(/\r?\n/).pop(); if (l) lastErr = l; });
+    child.on('error', (err) => { lastErr = err.message; });
+    child.on('close', (code) => {
+      active.delete(gameId);
+      if (controller.signal.aborted) { send('download:progress', { gameId, phase: 'cancelled' }); return resolve({ ok: false, error: 'Cancelado.' }); }
+      if (code === 0 && (!result || result.success !== false)) return resolve({ ok: true });
+      const error = (result && result.error) || lastErr || `o Setup saiu com código ${code}`;
+      send('download:progress', { gameId, phase: 'error', error });
+      resolve({ ok: false, error: `Falhou ao compilar: ${error}` });
+    });
+  });
+}
+
+async function launchWiiCompiled(gameId, info) {
+  const exe = info.exe && fs.existsSync(info.exe) ? info.exe : path.join(info.dir, info.asset);
+  if (!info.built) {
+    if (active.has(gameId)) return { ok: false, error: 'Já está compilando.' };
+    const r = await dialog.showOpenDialog(win, {
+      title: 'Escolha a imagem do seu disco de Mario Kart Wii (PAL, RMCP01)',
+      properties: ['openFile'],
+      filters: [{ name: 'Imagem de disco do Wii', extensions: ['iso', 'wbfs', 'rvz', 'ciso', 'gcz', 'wia', 'nkit'] }, { name: 'Todos', extensions: ['*'] }],
+    });
+    if (r.canceled || !r.filePaths[0]) return { ok: false, error: 'Precisa escolher a imagem do disco (PAL, RMCP01) pra compilar o jogo.' };
+    const b = await runWiiCompiledBuild(gameId, exe, r.filePaths[0]);
+    if (!b.ok) return b;
+    const installed = getInstalled();
+    if (installed[gameId]) { installed[gameId].built = true; writeJson(INSTALLED_FILE, installed); }
+    send('download:progress', { gameId, phase: 'done', built: true });
+  }
+  const child = spawn(exe, ['--launch-base'], { cwd: path.dirname(exe), detached: true, stdio: 'ignore', windowsHide: true });
+  child.on('error', (err) => send('toast', { type: 'error', text: `Não abriu: ${err.message}` }));
+  const startedAt = Date.now();
+  child.on('exit', (code) => {
+    // --launch-base espera o jogo fechar; só é erro de abertura se morreu logo de cara
+    if (code && Date.now() - startedAt < 15000) send('toast', { type: 'error', text: 'O WiiCompiled não abriu. Se a compilação foi apagada, desinstale e instale de novo.' });
+  });
+  child.unref();
+  const installed = getInstalled();
+  if (installed[gameId]) { installed[gameId].lastPlayed = new Date().toISOString(); writeJson(INSTALLED_FILE, installed); }
+  return { ok: true };
+}
+
 ipcMain.handle('game:launch', async (_e, gameId) => {
   const info = getInstalled()[gameId];
   if (!info) return { ok: false, error: 'Jogo não instalado.' };
+  if (process.platform === 'win32' && isWiiCompiledSetup(info)) return launchWiiCompiled(gameId, info);
   let exe = info.exe;
   if (!exe || !fs.existsSync(exe)) {
     const files = await walkFiles(info.dir);

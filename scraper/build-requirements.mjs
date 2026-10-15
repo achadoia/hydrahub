@@ -134,7 +134,10 @@ if (ONLY) for (const [k, v] of Object.entries(prev)) if (!out[k]) out[k] = v;
 
 // onde o HydraHub faz diferente do README (ex.: o próprio app pede o arquivo e compila)
 const OVERRIDES = {
-  'patchzyy/wiicompiled': { comoUsar: 'Clique em Jogar: o HydraHub pede a imagem do disco, compila o jogo uma vez (precisa de uns 20 GB livres) e depois abre direto.' },
+  'patchzyy/wiicompiled': {
+    comoUsar: 'Clique em Jogar: o HydraHub pede a imagem do disco, compila o jogo uma vez (precisa de uns 20 GB livres) e depois abre direto.',
+    obs: 'Sem controle? O teclado vem desligado: no jogo aperte F10 → Controller settings → marque "Keyboard and mouse" (WASD vira, clique esquerdo acelera, clique direito faz drift, Shift usa item, Espaço freia).',
+  },
 };
 for (const [k, v] of Object.entries(OVERRIDES)) if (out[k]) Object.assign(out[k], v);
 

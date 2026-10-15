@@ -249,16 +249,21 @@ function pageTutorial(id) {
 }
 
 // ---------- CATÁLOGO ----------
+// o botão de tipo (Jogáveis, Instalar no PC, Navegador...) separado da plataforma, pra contar cada um
+function matchKind(g, kind) {
+  if (kind === 'playable') return g.playable;
+  if (kind === 'install') return g.kinds.includes('install') && g.ways.some((w) => w.kind === 'install' && !w.noWindows);
+  if (kind === 'browser') return g.kinds.includes('browser') && g.browserOnline !== false;
+  if (kind === 'source') return !g.playable;
+  if (kind === 'emulator') return g.category === 'emulador';
+  if (kind === 'installed') return !!state.installed[g.id];
+  return true;
+}
 function applyFilters() {
   const f = state.filter;
   const words = f.q.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').split(/\s+/).filter(Boolean);
   let list = state.games.filter((g) => {
-    if (f.kind === 'playable' && !g.playable) return false;
-    if (f.kind === 'install' && !g.kinds.includes('install')) return false;
-    if (f.kind === 'browser' && !(g.kinds.includes('browser') && g.browserOnline !== false)) return false;
-    if (f.kind === 'source' && g.playable) return false;
-    if (f.kind === 'emulator' && g.category !== 'emulador') return false;
-    if (f.kind === 'installed' && !state.installed[g.id]) return false;
+    if (!matchKind(g, f.kind)) return false;
     if (f.platform && !g.platforms.includes(f.platform)) return false;
     if (words.length) {
       const hay = g._hay || (g._hay = [g.title, ...g.aliases, ...g.platforms.map(platName), ...g.projects.map((p) => p.name)].join(' ').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''));
@@ -280,17 +285,23 @@ function pageGames(arg) {
   if (params.get('sort')) state.filter.sort = params.get('sort');
   if (params.get('platform')) state.filter.platform = params.get('platform');
   state.shown = 60;
-  const platCounts = {};
-  for (const g of state.games) if (g.playable) for (const p of g.platforms) platCounts[p] = (platCounts[p] || 0) + 1;
-  const plats = Object.entries(platCounts).sort((a, b) => b[1] - a[1]);
-  const kinds = [['playable', 'Jogáveis', 'gamepad'], ['install', 'Instalar no PC', 'download'], ['browser', 'Navegador (online)', 'browser'], ['emulator', 'Emuladores', 'chip'], ['source', 'Só código-fonte', 'github'], ['all', 'Todos', 'filter']];
+  const kinds = [['playable', 'Jogáveis', 'gamepad'], ['install', 'Instalar no PC', 'download'], ['browser', 'Jogar no navegador', 'browser'], ['emulator', 'Emuladores', 'chip'], ['source', 'Só código-fonte', 'github'], ['all', 'Todos', 'filter']];
+  const kindCount = Object.fromEntries(kinds.map(([k]) => [k, state.games.filter((g) => matchKind(g, k)).length]));
+  // plataformas com a contagem do tipo escolhido (antes contava todos os jogáveis e dava "Virtual Boy (3)" → 0 jogos)
+  const platOptions = () => {
+    const counts = {};
+    for (const g of state.games) if (matchKind(g, state.filter.kind)) for (const p of g.platforms) counts[p] = (counts[p] || 0) + 1;
+    const cur = state.filter.platform;
+    if (cur && !counts[cur]) counts[cur] = 0;
+    return `<option value="">Todas as plataformas</option>${Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([p, n]) => `<option value="${p}" ${cur === p ? 'selected' : ''}>${esc(platName(p))} (${n})</option>`).join('')}`;
+  };
   view.innerHTML = `
     <div class="page-head"><div><h1>Jogos Recompilados</h1><p>Um jogo, uma página: juntamos os projetos de 5 fontes sem repetir nenhum.</p></div></div>
     <div class="filters">
-      ${kinds.map(([k, l, ic]) => `<button class="chip ${state.filter.kind === k ? 'on' : ''}" data-kind="${k}">${icon(ic, 'style="width:15px;height:15px"')}${l}</button>`).join('')}
+      ${kinds.map(([k, l, ic]) => `<button class="chip ${state.filter.kind === k ? 'on' : ''}" data-kind="${k}">${icon(ic, 'style="width:15px;height:15px"')}${l}<em class="chip-n">${kindCount[k].toLocaleString('pt-BR')}</em></button>`).join('')}
       ${state.filter.q ? `<button class="chip on" id="clear-q">"${esc(state.filter.q)}" ${icon('x', 'style="width:14px;height:14px"')}</button>` : ''}
       <span class="spacer"></span>
-      <select class="select" id="f-plat"><option value="">Todas as plataformas</option>${plats.map(([p, n]) => `<option value="${p}" ${state.filter.platform === p ? 'selected' : ''}>${esc(platName(p))} (${n})</option>`).join('')}</select>
+      <select class="select" id="f-plat">${platOptions()}</select>
       <select class="select" id="f-sort">
         ${[['popular', 'Mais populares'], ['downloads', 'Mais baixados'], ['recent', 'Release mais recente'], ['az', 'A–Z'], ['year', 'Ano de lançamento']].map(([v, l]) => `<option value="${v}" ${state.filter.sort === v ? 'selected' : ''}>${l}</option>`).join('')}
       </select>
@@ -301,10 +312,13 @@ function pageGames(arg) {
   const draw = () => {
     const list = applyFilters();
     $('#count').textContent = `${list.length.toLocaleString('pt-BR')} jogos${state.filter.q ? ` para "${state.filter.q}"` : ''}`;
-    $('#grid').innerHTML = list.length ? list.slice(0, state.shown).map((g) => cover(g)).join('') : `<div class="empty" style="grid-column:1/-1"><img src="assets/logo-128.png" alt="">Nenhum jogo encontrado com esses filtros.</div>`;
+    const plat = state.filter.platform;
+    const why = plat ? `Nenhum jogo de <b>${esc(platName(plat))}</b> com o filtro "${esc(kinds.find(([k]) => k === state.filter.kind)?.[1] || 'Todos')}".<br><button class="btn small" id="clear-plat" style="margin-top:12px">${icon('x')}Ver todas as plataformas</button>` : 'Nenhum jogo encontrado com esses filtros.';
+    $('#grid').innerHTML = list.length ? list.slice(0, state.shown).map((g) => cover(g)).join('') : `<div class="empty" style="grid-column:1/-1"><img src="assets/logo-128.png" alt="">${why}</div>`;
+    $('#clear-plat')?.addEventListener('click', () => { state.filter.platform = ''; $('#f-plat').innerHTML = platOptions(); draw(); });
     $('#more').hidden = list.length <= state.shown;
   };
-  $$('.chip[data-kind]').forEach((b) => b.addEventListener('click', () => { state.filter.kind = b.dataset.kind; state.shown = 60; $$('.chip[data-kind]').forEach((x) => x.classList.toggle('on', x === b)); draw(); }));
+  $$('.chip[data-kind]').forEach((b) => b.addEventListener('click', () => { state.filter.kind = b.dataset.kind; state.shown = 60; $$('.chip[data-kind]').forEach((x) => x.classList.toggle('on', x === b)); $('#f-plat').innerHTML = platOptions(); draw(); }));
   $('#f-plat').addEventListener('change', (e) => { state.filter.platform = e.target.value; state.shown = 60; draw(); });
   $('#f-sort').addEventListener('change', (e) => { state.filter.sort = e.target.value; draw(); });
   $('#more').addEventListener('click', () => { state.shown += 60; draw(); });

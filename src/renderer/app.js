@@ -1,5 +1,6 @@
 import { icon } from './icons.js';
 import { TUTORIALS, tutorialCover } from './tutorials.js';
+import { COPY_GUIDE, COPY_FALLBACK } from './copia.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -335,9 +336,24 @@ function gameReq(g, w = primaryInstallWay(g)) {
 }
 const reqNeedsFile = (r) => !!r && (r.precisa === 'rom' || r.precisa === 'arquivos');
 function reqHtml(r, g, { compact } = {}) {
-  const rows = [
+  const plat = g.platforms[0];
+  const isPc = ['pc', 'dos', 'mac'].includes(plat);
+  const rows = compact ? [
     r.regiao && ['Região', esc(r.regiao)],
+    r.idJogo && ['ID do jogo', `<code>${esc(r.idJogo)}</code>`],
     r.versao && ['Versão', esc(r.versao)],
+    r.atualizacao && ['Atualização', esc(r.atualizacao)],
+    r.formatos?.length && ['Formato', r.formatos.map((f) => `<code>${esc(f)}</code>`).join(' ')],
+    r.nomeArquivo && ['Nome do arquivo', `<code>${esc(r.nomeArquivo)}</code>`],
+    r.hash?.valor && [esc(r.hash.tipo || 'Hash'), `<code class="hash" title="Clique pra copiar">${esc(r.hash.valor)}</code>`],
+  ].filter(Boolean) : [
+    // ficha completa: tudo que identifica a cópia certa, mesmo quando o projeto não especifica
+    ['Jogo', esc(r.nomeExato || g.title)],
+    plat && ['Console', esc(platName(plat))],
+    !isPc && ['Região', r.regiao ? esc(r.regiao) : '<i>o projeto não especifica (na dúvida, use a americana: USA / NTSC-U)</i>'],
+    r.idJogo && ['ID do jogo', `<code>${esc(r.idJogo)}</code>`],
+    ['Versão do jogo', r.versao ? esc(r.versao) : '<i>o projeto não especifica</i>'],
+    ['Atualização (update)', r.atualizacao ? `${esc(r.atualizacao)} <i>(instalada junto com o jogo base)</i>` : '<i>nenhuma exigida</i>'],
     r.formatos?.length && ['Formato', r.formatos.map((f) => `<code>${esc(f)}</code>`).join(' ')],
     r.nomeArquivo && ['Nome do arquivo', `<code>${esc(r.nomeArquivo)}</code>`],
     r.hash?.valor && [esc(r.hash.tipo || 'Hash'), `<code class="hash" title="Clique pra copiar">${esc(r.hash.valor)}</code>`],
@@ -349,8 +365,20 @@ function reqHtml(r, g, { compact } = {}) {
     ${r.comoUsar ? `<p><b>Como usar:</b> ${esc(r.comoUsar)}</p>` : ''}
     ${r.obs ? `<p>${esc(r.obs)}</p>` : ''}
     ${r.hash?.valor ? `<div class="rom-check"><button class="btn small" data-romcheck="${esc(g.id)}">${icon('check')}Conferir minha ROM</button><span data-romresult></span></div>` : ''}
-    <p class="small">O HydraHub instala o jogo, mas não fornece ROM nem arquivos. ${r.hash?.valor ? 'O botão acima calcula o hash do seu arquivo e diz se é exatamente a cópia certa. ' : ''}<a href="#/tutorial/dump-rom">Como fazer o dump da sua cópia</a>.</p>
+    <p class="small"><b>O HydraHub não envia nem indica links de download</b> de ROM, ISO ou arquivos de jogo: você precisa conseguir essa cópia por conta própria. O caminho legal é tirar da sua própria cópia, como mostra o passo a passo "Como conseguir a cópia certa" logo abaixo. Use esta ficha pra conferir se o arquivo que você tem é exatamente o certo.${r.hash?.valor ? ' O botão acima calcula o hash do seu arquivo e diz se bate.' : ''}</p>
   </div></div>`;
+}
+// passo a passo de como tirar a cópia certa do próprio console/loja (copia.js), sem links de download
+function copyGuideHtml(r, g) {
+  const plat = g.platforms.find((p) => COPY_GUIDE[p]) || g.platforms[0];
+  const c = COPY_GUIDE[plat] || COPY_FALLBACK;
+  const alvo = [r?.nomeExato || g.title, r?.regiao, r?.idJogo, r?.versao && `versão ${r.versao}`, r?.atualizacao && `atualização ${r.atualizacao}`].filter(Boolean).map(esc).join(' · ');
+  return `<p>Você vai precisar de: <b>${alvo}</b>${c.formato ? ` (arquivo <code>${esc(c.formato)}</code>)` : ''}.</p>
+    <div class="callout">${icon('wrench')}<p><b>O que você precisa ter:</b> ${c.aparelho}</p></div>
+    <ol class="steps copy-steps">${c.passos.map((p) => `<li>${p}</li>`).join('')}</ol>
+    ${c.extra ? `<p>${c.extra}</p>` : ''}
+    <div class="callout">${icon('check')}<p><b>Como conferir se é a cópia certa:</b> ${c.conferir}${r?.hash?.valor ? ' O hash que o projeto aceita está na ficha acima (clique pra copiar).' : ''}</p></div>
+    <p class="muted small">Mais detalhes no tutorial <a href="#/tutorial/dump-rom">Como fazer o dump legal do seu cartucho ou disco</a>. Baixar ROM/ISO de sites de terceiros é pirataria na maioria dos países, e arquivos de origem duvidosa costumam vir na região ou versão errada.</p>`;
 }
 // resultado da conferência da ROM, em português de gente
 function romMsg(c, r) {
@@ -493,7 +521,8 @@ function pageGame(id) {
       ${iw && !iw.direct ? `<div class="callout">${icon('info')}<p><b>Requisitos:</b> placa de vídeo com Vulkan ou Direct3D 12 e o Visual C++ Redistributable. <a href="#/tutorial/requisitos">Veja o guia de preparação do PC</a>.</p></div>` : ''}
       ${deadBrowser ? `<div class="callout warn off">${icon('alert')}<p><b>Versão de navegador fora do ar.</b> No último teste (${fmtDate(g.ways.find((w) => w.kind === 'browser').checkedAt)}) os links de navegador deste jogo não responderam. O HydraHub testa de novo todo dia.</p></div>` : ''}
       ${g.ways.filter((w) => w.externalHost).map((w) => `<div class="callout warn">${icon('alert')}<p><b>Roda num servidor de terceiros.</b> A versão de navegador de ${esc(w.project || 'este port')} carrega de <code>${esc(w.externalHost)}</code>, que não é controlado pelo HydraHub nem pelo site que lista o jogo. Pode ficar lento ou sair do ar. Nunca instale nada que essa página pedir.</p></div>`).join('')}
-      ${systems.length ? `<p>Disponível para: ${systems.map((s) => `<span class="tag">${esc(sysName[s] || s)}</span>`).join(' ')}</p>` : ''}
+      ${needsRom && req?.precisa !== 'nada' ? `${sec('Como conseguir a cópia certa')}${copyGuideHtml(req, g)}` : ''}
+      ${systems.length ? `<p>Disponível para:${systems.map((s) => `<span class="tag">${esc(sysName[s] || s)}</span>`).join(' ')}</p>` : ''}
       ${sec('Passo a passo')}
       ${stepsHtml(stepsWay || iw || browser)}
       ${stepsWay?.steps?.length ? `<p class="muted" style="font-size:12px">Passos tirados da documentação oficial do projeto (via recomp.gg) e traduzidos. O texto original aparece em cinza.</p>` : ''}

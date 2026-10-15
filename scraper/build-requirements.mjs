@@ -53,7 +53,10 @@ Campos (português do Brasil, frases curtas e simples):
 - "precisa": "rom" (uma ROM/ISO/imagem de disco do jogo original), "arquivos" (arquivos/pasta do jogo original instalado, ex.: dados de PC/Steam, .pak, assets extraídos), "nada" (o projeto já vem jogável sem nada do jogo original, ex.: jogo livre/homebrew/engine com dados próprios), "incerto" (o texto não deixa claro)
 - "arquivo": o que é, em 1 frase leiga. Ex.: "ROM do Super Mario 64 da versão americana (USA)", "imagem do disco de Mario Kart Wii, versão europeia (PAL, RMCP01)"
 - "regiao": ex. "USA", "Europa (PAL)", "Japão", ou null
-- "versao": ex. "1.0", "Rev 1", "GOTY", ou null
+- "versao": versão do jogo BASE, ex. "1.0", "Rev 1", "GOTY", "versão da GOG", ou null
+- "atualizacao": atualização/patch/title update que precisa estar instalada JUNTO com o jogo base, ex. "1.09", "TU 2", "v1.2.0", ou null. Se o README diz só "update 1.09" ou "patch 1.09", vai aqui (não em "versao").
+- "idJogo": código oficial que identifica a cópia exata, ex. "CUSA00900", "RMCP01", "SLUS-00594", "NUS-NSME-USA", "4D5307E6" (Title ID do Xbox 360). Use o do README; se o README não traz mas define a região e você tem CERTEZA ABSOLUTA do código oficial daquele jogo naquela região, pode preencher; na dúvida, null
+- "nomeExato": nome da cópia como aparece nos bancos No-Intro/Redump, ex. "Super Mario 64 (USA)", "Mario Kart Wii (Europe) (En,Fr,De,Es,It)"; só se a região/versão for conhecida, senão null
 - "formatos": lista de extensões aceitas citadas, ex. [".z64"], [".iso", ".rvz"]; [] se não citar
 - "hash": {"tipo": "SHA1"|"MD5"|"CRC32"|"SHA256", "valor": "..."} se o README traz o hash do arquivo certo, senão null
 - "nomeArquivo": nome exato que o arquivo precisa ter, se o README exigir (ex. "baserom.us.z64"), senão null

@@ -583,12 +583,64 @@ ipcMain.handle('game:launch', async (_e, gameId) => {
   }
   if (!exe) { shell.openPath(info.dir); return { ok: false, error: 'Não achei o executável; abri a pasta do jogo.' }; }
   if (process.platform !== 'win32') await fsp.chmod(exe, 0o755).catch(() => {});
-  const child = spawn(exe, [], { cwd: path.dirname(exe), detached: true, stdio: 'ignore' });
+  let child;
+  // .exe corrompido/incompleto faz o spawn estourar na hora (spawn UNKNOWN): vira aviso, não erro calado
+  try { child = spawn(exe, [], { cwd: path.dirname(exe), detached: true, stdio: 'ignore' }); } catch (err) {
+    return { ok: false, error: `Não consegui abrir ${path.basename(exe)} (${err.code || err.message}). O arquivo pode estar corrompido: desinstale e instale de novo, ou use "Escolher executável".` };
+  }
   child.on('error', (err) => send('toast', { type: 'error', text: `Não abriu: ${err.message}` }));
   child.unref();
   const installed = getInstalled();
   if (installed[gameId]) { installed[gameId].exe = exe; installed[gameId].lastPlayed = new Date().toISOString(); writeJson(INSTALLED_FILE, installed); }
   return { ok: true };
+});
+
+// ---------- ROM do jogador: conferir hash e colocar na pasta certa ----------
+const rom = require('./rom');
+// onde o jogo espera o arquivo: pasta relativa ao .exe (do README) + nome exato
+function romTarget(info, req, file) {
+  if (!info || !req) return null;
+  const base = info.exe && fs.existsSync(info.exe) ? path.dirname(info.exe) : info.dir;
+  const dir = path.resolve(base, req.pasta || '.');
+  if (!dir.startsWith(path.resolve(info.dir)) && !dir.startsWith(path.resolve(base))) return null; // nunca fora da pasta do jogo
+  const name = req.nomeArquivo || (file ? path.basename(file) : null);
+  return name ? path.join(dir, name) : null;
+}
+ipcMain.handle('rom:pick', async (_e, { title, req } = {}) => {
+  if (process.env.HYDRA_SHOT && process.env.HYDRA_TEST_PICK) return process.env.HYDRA_TEST_PICK; // testes automáticos
+  const exts = (req?.formatos || []).map((f) => String(f).replace(/^\./, '')).filter((f) => /^[a-z0-9]{1,6}$/i.test(f));
+  // ROM de N64: aceita também .n64/.v64 (o HydraHub converte)
+  if (exts.some((e) => /^z64$/i.test(e))) exts.push('n64', 'v64');
+  const r = await dialog.showOpenDialog(win, {
+    title: `Escolha ${req?.arquivo ? `o arquivo: ${req.arquivo}` : `o arquivo do ${title || 'jogo'}`}`,
+    properties: ['openFile'],
+    filters: [...(exts.length ? [{ name: 'Arquivo do jogo', extensions: [...new Set(exts)] }] : []), { name: 'Todos os arquivos', extensions: ['*'] }],
+  });
+  return r.canceled ? null : r.filePaths[0] || null;
+});
+ipcMain.handle('rom:check', async (_e, { file, req }) => {
+  try { const { data, ...r } = await rom.check(file, req); return { ...r, file, name: path.basename(file) }; } catch (e) { return { error: e.message }; }
+});
+ipcMain.handle('rom:status', (_e, { gameId, req }) => {
+  const target = romTarget(getInstalled()[gameId], req);
+  return { target, exists: !!target && fs.existsSync(target) };
+});
+ipcMain.handle('rom:place', async (_e, { gameId, req, file, force }) => {
+  const info = getInstalled()[gameId];
+  if (!info) return { ok: false, error: 'Jogo não instalado.' };
+  try {
+    const c = await rom.check(file, req);
+    if (c.ok === false && !force) { const { data, ...r } = c; return { ok: false, mismatch: true, check: r }; }
+    let target = romTarget(info, req, file);
+    if (!target) return { ok: false, error: 'Não sei onde esse jogo espera o arquivo.' };
+    if (c.converted && !req.nomeArquivo) target = target.replace(/\.(n64|v64)$/i, '.z64');
+    await fsp.mkdir(path.dirname(target), { recursive: true });
+    if (c.data) await fsp.writeFile(target, c.data); else await fsp.copyFile(file, target);
+    const installed = getInstalled();
+    if (installed[gameId]) { installed[gameId].romPlaced = target; writeJson(INSTALLED_FILE, installed); }
+    const { data, ...r } = c;
+    return { ok: true, target, check: r };
+  } catch (e) { return { ok: false, error: e.message }; }
 });
 
 ipcMain.handle('game:setExe', async (_e, gameId) => {

@@ -307,3 +307,12 @@ code { border: 2px solid var(--ink); background: var(--ink); color: var(--accent
 /* contagem dentro dos botões de filtro */
 .chip .chip-n { font-style: normal; font-size: 12px; font-weight: 800; margin-left: 6px; padding: 1px 7px; border-radius: 999px; background: rgba(255,255,255,.12); }
 .chip.on .chip-n { background: rgba(5,6,7,.18); }
+
+/* conferir ROM */
+.rom-check { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 4px 0 10px; }
+.rom-check [data-romresult], .modal [data-msg] { font-size: 13.5px; }
+.rom-ok, .rom-bad { display: block; line-height: 1.55; }
+.rom-ok svg, .rom-bad svg { width: 16px; height: 16px; vertical-align: -3px; margin-right: 6px; }
+.rom-ok svg { color: #1b7a2c; } .rom-bad svg { color: #b4232f; }
+.modal [data-msg] .rom-ok, .modal [data-msg] .rom-bad { margin-top: 12px; padding: 10px 12px; border: 2px solid var(--ink); border-radius: 8px; background: var(--white, #fff); color: var(--ink); }
+.modal > p code, .modal [data-msg] code { word-break: break-all; }

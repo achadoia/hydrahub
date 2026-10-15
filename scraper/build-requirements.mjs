@@ -57,9 +57,28 @@ Campos (português do Brasil, frases curtas e simples):
 - "formatos": lista de extensões aceitas citadas, ex. [".z64"], [".iso", ".rvz"]; [] se não citar
 - "hash": {"tipo": "SHA1"|"MD5"|"CRC32"|"SHA256", "valor": "..."} se o README traz o hash do arquivo certo, senão null
 - "nomeArquivo": nome exato que o arquivo precisa ter, se o README exigir (ex. "baserom.us.z64"), senão null
+- "modo": como o jogo PRONTO (baixado da release) recebe o arquivo: "seletor" (o jogo abre e pede pra escolher o arquivo numa janela/menu), "pasta" (o arquivo tem que estar numa pasta, com nome certo, ANTES de abrir), "outro" (instalador próprio, extração manual, compilar etc.) ou null se não diz. Ignore instruções de compilar o código-fonte quando houver release pronta.
+- "pasta": se modo = "pasta", a pasta relativa ao executável do jogo onde o arquivo vai, com "/" (ex. "data", "assets/rom", "." para a mesma pasta do .exe); senão null
 - "comoUsar": 1 a 2 frases dizendo onde/como entregar o arquivo pro jogo. Ex.: "Na primeira vez que abrir, o jogo pede pra você escolher a ROM." ou "Coloque o arquivo na pasta do jogo com o nome baserom.us.z64 antes de abrir."
 - "obs": 1 frase com algum outro requisito importante (ex.: "Cópias modificadas ou de outras regiões são recusadas"), ou null
 Mantenha nomes de jogos, extensões, hashes e nomes de arquivo exatamente como no texto. Responda APENAS com um array JSON na mesma ordem.`;
+
+// o app confere a ROM por esse hash: só passa se tiver o tamanho certo do tipo
+const HASH_LEN = { MD5: 32, SHA1: 40, CRC32: 8, SHA256: 64 };
+function cleanHash(h) {
+  if (!h?.valor) return null;
+  const tipo = String(h.tipo || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const valor = String(h.valor).trim().toLowerCase().replace(/^0x/, '');
+  return HASH_LEN[tipo] && valor.length === HASH_LEN[tipo] && /^[0-9a-f]+$/.test(valor) ? { tipo, valor } : null;
+}
+// o app copia o arquivo pra essa pasta: nada de caminho absoluto ou subir de pasta
+function cleanDir(p) {
+  if (p == null) return null;
+  const s = String(p).trim().split(String.fromCharCode(92)).join('/').replace(/^\.\/+/, '').replace(/\/+$/, '');
+  if (!s || s === '.') return '.';
+  if (/:|^\/|(^|\/)\.\.(\/|$)/.test(s)) return null; // C:\..., sd:/..., /abs, ../
+  return s;
+}
 
 async function ask(chunk) {
   const key = process.env.GEMINI_API_KEY;
@@ -104,7 +123,8 @@ await pool(items, 8, async (it) => {
   const md = await readme(it.repo);
   // passos do recomp.gg ajudam quando o README é curto
   it.snippet = `${it.steps.length ? `PASSOS OFICIAIS: ${it.steps.join(' ')}\n` : ''}${relevant(md)}`;
-  it.hash = crypto.createHash('sha1').update(it.snippet).digest('hex').slice(0, 12);
+  // a versão do pedido entra no cache: mudou o PROMPT (ex.: campos novos), reprocessa tudo
+  it.hash = crypto.createHash('sha1').update(PROMPT).update(it.snippet).digest('hex').slice(0, 12);
 });
 
 const out = {};
@@ -123,7 +143,7 @@ else {
       const it = chunk.find((c) => c.repo.toLowerCase() === String(x.repo || '').toLowerCase()) || (arr.length === chunk.length ? chunk[n] : null);
       if (!it || !x.precisa) continue;
       const { repo: _r, ...rest } = x;
-      out[it.repo.toLowerCase()] = { ...rest, formatos: Array.isArray(x.formatos) ? x.formatos : [], src: it.hash };
+      out[it.repo.toLowerCase()] = { ...rest, formatos: Array.isArray(x.formatos) ? x.formatos : [], hash: cleanHash(x.hash), pasta: cleanDir(x.pasta), src: it.hash };
     }
     // README que não mudou mas falhou agora: fica com a versão antiga
     for (const it of chunk) { const k = it.repo.toLowerCase(); if (!out[k] && prev[k]) out[k] = prev[k]; }

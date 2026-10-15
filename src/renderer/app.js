@@ -334,7 +334,7 @@ function gameReq(g, w = primaryInstallWay(g)) {
   return (repo && state.reqs?.[repo.toLowerCase()]) || null;
 }
 const reqNeedsFile = (r) => !!r && (r.precisa === 'rom' || r.precisa === 'arquivos');
-function reqHtml(r, g) {
+function reqHtml(r, g, { compact } = {}) {
   const rows = [
     r.regiao && ['Região', esc(r.regiao)],
     r.versao && ['Versão', esc(r.versao)],
@@ -342,13 +342,26 @@ function reqHtml(r, g) {
     r.nomeArquivo && ['Nome do arquivo', `<code>${esc(r.nomeArquivo)}</code>`],
     r.hash?.valor && [esc(r.hash.tipo || 'Hash'), `<code class="hash" title="Clique pra copiar">${esc(r.hash.valor)}</code>`],
   ].filter(Boolean);
+  if (compact) return `<div class="callout warn req">${icon('cartridge')}<div><p><b>${esc(r.arquivo || g.title)}</b></p>${rows.length ? `<div class="req-grid">${rows.map(([k, v]) => `<span>${k}</span><b>${v}</b>`).join('')}</div>` : ''}${r.obs ? `<p class="small">${esc(r.obs)}</p>` : ''}</div></div>`;
   return `<div class="callout warn req">${icon('cartridge')}<div>
     <p><b>${r.precisa === 'arquivos' ? 'Você precisa dos arquivos do seu jogo original' : 'Você precisa da ROM/imagem do seu jogo'}:</b> ${esc(r.arquivo || g.title)}.</p>
     ${rows.length ? `<div class="req-grid">${rows.map(([k, v]) => `<span>${k}</span><b>${v}</b>`).join('')}</div>` : ''}
     ${r.comoUsar ? `<p><b>Como usar:</b> ${esc(r.comoUsar)}</p>` : ''}
     ${r.obs ? `<p>${esc(r.obs)}</p>` : ''}
-    <p class="small">O HydraHub instala o jogo, mas não fornece ROM nem arquivos. ${r.hash?.valor ? 'O hash serve pra conferir se a sua cópia é exatamente a certa. ' : ''}<a href="#/tutorial/dump-rom">Como fazer o dump da sua cópia</a>.</p>
+    ${r.hash?.valor ? `<div class="rom-check"><button class="btn small" data-romcheck="${esc(g.id)}">${icon('check')}Conferir minha ROM</button><span data-romresult></span></div>` : ''}
+    <p class="small">O HydraHub instala o jogo, mas não fornece ROM nem arquivos. ${r.hash?.valor ? 'O botão acima calcula o hash do seu arquivo e diz se é exatamente a cópia certa. ' : ''}<a href="#/tutorial/dump-rom">Como fazer o dump da sua cópia</a>.</p>
   </div></div>`;
+}
+// resultado da conferência da ROM, em português de gente
+function romMsg(c, r) {
+  if (c.error) return `<span class="rom-bad">${icon('x')}Não consegui ler o arquivo: ${esc(c.error)}</span>`;
+  const conv = c.converted ? ` (era .${c.converted}, o HydraHub converte pra .z64)` : '';
+  if (c.ok === true) return `<span class="rom-ok">${icon('check')}<b>Cópia certa!</b> O ${esc(c.tipo)} de <code>${esc(c.name || '')}</code> confere${conv}.</span>`;
+  if (c.ok === false) {
+    const want = [r.regiao, r.versao].filter(Boolean).join(', ');
+    return `<span class="rom-bad">${icon('alert')}<b>Não é a cópia que o jogo pede.</b> O ${esc(c.tipo)} da sua (<code>${esc(c.got.slice(0, 12))}…</code>) é diferente${conv}. ${want ? `O jogo pede a versão <b>${esc(want)}</b>; ` : ''}pode ser outra região, outra revisão ou um arquivo modificado.</span>`;
+  }
+  return `<span>${esc(c.tipo)} calculado: <code>${esc(c.got)}</code> (o projeto não publicou hash pra comparar).</span>`;
 }
 // antes de abrir pela 1ª vez, mostra exatamente o arquivo que o jogo vai pedir
 function reqModal(g, r) {
@@ -362,8 +375,52 @@ function reqModal(g, r) {
     document.body.append(el);
   });
 }
+// jogo que exige o arquivo numa pasta com nome certo: o HydraHub pede, confere e coloca no lugar
+function placeModal(g, r) {
+  return new Promise((resolve) => {
+    const el = document.createElement('div');
+    el.className = 'modal-bg';
+    const where = `${r.pasta && r.pasta !== '.' ? `pasta <code>${esc(r.pasta)}</code> do jogo` : 'pasta do jogo'}${r.nomeArquivo ? ` com o nome <code>${esc(r.nomeArquivo)}</code>` : ''}`;
+    el.innerHTML = `<div class="modal"><h3>Falta o arquivo do ${esc(g.title)}</h3>
+      <p>Esse jogo só abre com o arquivo na ${where}. Escolha o seu arquivo que o HydraHub ${r.hash?.valor ? 'confere se é a cópia certa, ' : ''}copia e renomeia pra você.</p>
+      ${reqHtml(r, g, { compact: true })}<div data-msg></div>
+      <div class="modal-actions" data-acts><button class="btn primary" data-pick>${icon('folder')}Escolher o arquivo</button><button class="btn ghost" data-no>Agora não</button></div></div>`;
+    const close = (v) => { el.remove(); resolve(v); };
+    let lastFile = null;
+    const place = async (file, force) => {
+      el.querySelector('[data-msg]').innerHTML = `<p class="muted">${icon('refresh')}Conferindo e copiando…</p>`;
+      const res = await window.hydra.romPlace({ gameId: g.id, req: r, file, force });
+      if (res.ok) { toast(`Arquivo colocado: ${res.target}`, 'ok', 6000); return close(true); }
+      if (res.mismatch) {
+        el.querySelector('[data-msg]').innerHTML = `<p>${romMsg({ ...res.check, name: file.split(/[\\/]/).pop() }, r)}</p>`;
+        el.querySelector('[data-acts]').innerHTML = `<button class="btn primary" data-pick>${icon('folder')}Escolher outro arquivo</button><button class="btn ghost" data-force>Usar mesmo assim</button><button class="btn ghost" data-no>Agora não</button>`;
+        el.querySelector('[data-acts]').scrollIntoView({ block: 'end', behavior: 'smooth' });
+        return;
+      }
+      el.querySelector('[data-msg]').innerHTML = `<p class="rom-bad">${icon('x')}${esc(res.error || 'Não consegui copiar o arquivo.')}</p>`;
+    };
+    el.addEventListener('click', async (e) => {
+      if (e.target === el || e.target.closest('[data-no]')) return close(false);
+      if (e.target.closest('[data-force]') && lastFile) return place(lastFile, true);
+      if (e.target.closest('[data-pick]')) { const f = await window.hydra.romPick({ title: g.title, req: r }); if (f) { lastFile = f; place(f, false); } }
+    });
+    document.body.append(el);
+  });
+}
 // copiar hash com um clique (página do jogo e modal)
 document.addEventListener('click', (e) => { const h = e.target.closest('code.hash'); if (h) navigator.clipboard.writeText(h.textContent).then(() => toast('Hash copiado.', 'ok')); });
+// "Conferir minha ROM" (página do jogo e avisos)
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-romcheck]');
+  if (!b) return;
+  const g = G(b.dataset.romcheck); const r = g && gameReq(g);
+  if (!r) return;
+  const out = b.parentElement.querySelector('[data-romresult]');
+  const file = await window.hydra.romPick({ title: g.title, req: r });
+  if (!file) return;
+  out.innerHTML = `<span class="muted">Calculando o hash…</span>`;
+  out.innerHTML = romMsg(await window.hydra.romCheck({ file, req: r }), r);
+});
 
 function primaryInstallWay(g) {
   // prefere o projeto que publica arquivo pra Windows (noWindows vem do build-stats)
@@ -566,7 +623,11 @@ function bindInstallButtons(g, repo, latest, best, exeHint) {
   });
   $('#btn-play')?.addEventListener('click', async () => {
     const req = gameReq(g);
-    if (reqNeedsFile(req) && !state.installed[g.id]?.lastPlayed && !(await reqModal(g, req))) return;
+    // jogo que exige o arquivo numa pasta: se ainda não está lá, o HydraHub pede e coloca
+    if (reqNeedsFile(req) && req.modo === 'pasta' && req.nomeArquivo) {
+      const st = await window.hydra.romStatus({ gameId: g.id, req });
+      if (st.target && !st.exists && !(await placeModal(g, req))) return;
+    } else if (reqNeedsFile(req) && !state.installed[g.id]?.lastPlayed && !(await reqModal(g, req))) return;
     const r = await window.hydra.launch(g.id);
     if (r.ok) toast(`Abrindo ${g.title}…`, 'ok'); else toast(r.error, 'error');
   });

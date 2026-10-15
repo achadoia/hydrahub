@@ -7,7 +7,7 @@ const fs = require('node:fs');
 const fsp = require('node:fs/promises');
 const { spawn } = require('node:child_process');
 const { pathToFileURL } = require('node:url');
-const { pickAsset, rankExecutables } = require('./assets');
+const { pickAsset, rankExecutables, isSetupName } = require('./assets');
 
 // Repositório onde o catálogo é regenerado todo dia pelo GitHub Actions
 const CATALOG_URL = 'https://raw.githubusercontent.com/achadoia/hydrahub/main/catalog/catalog.json';
@@ -100,6 +100,7 @@ function createWindow() {
       await wait(3500);
       for (const [i, r] of routes.split(',').entries()) {
         if (r.startsWith('wait:')) { await wait(+r.slice(5) * 1000); continue; }
+        if (r.startsWith('upd:')) { const [, state, percent, version] = r.split(':'); send('app:update', { state, percent: +percent || 0, version, speed: 2.5e6 }); await wait(800); continue; }
         if (r.startsWith('js:')) { console.log('JS>', JSON.stringify(await win.webContents.executeJavaScript(r.slice(3)))); continue; }
         if (r.startsWith('shot:')) { fs.writeFileSync(path.join(dir, `${i}-${r.slice(5)}.png`), (await win.webContents.capturePage()).toPNG()); continue; }
         await win.webContents.executeJavaScript(`location.hash=${JSON.stringify(r)}`);
@@ -140,12 +141,26 @@ function setupAutoUpdate() {
   const { autoUpdater } = require('electron-updater');
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
-  autoUpdater.on('update-available', (i) => send('app:update', { state: 'available', version: i.version }));
-  autoUpdater.on('update-downloaded', (i) => send('app:update', { state: 'ready', version: i.version }));
-  autoUpdater.on('error', (e) => console.warn('auto-update:', e.message));
-  const check = () => autoUpdater.checkForUpdates().catch(() => {});
-  setTimeout(check, 8000);
-  setInterval(check, 4 * 3600e3);
+  // Atualização OBRIGATÓRIA: ao abrir, se houver versão nova o app trava numa tela "Atualizando…",
+  // baixa e reinicia já atualizado. Na checagem periódica (app aberto há horas) só baixa e
+  // instala ao fechar, pra não derrubar download ou jogo em andamento; a próxima abertura força.
+  let forcing = false;
+  autoUpdater.on('update-available', (i) => send('app:update', { state: forcing ? 'forcing' : 'available', version: i.version }));
+  autoUpdater.on('update-not-available', () => { forcing = false; });
+  autoUpdater.on('download-progress', (p) => { if (forcing) send('app:update', { state: 'progress', percent: p.percent, speed: p.bytesPerSecond }); });
+  autoUpdater.on('update-downloaded', (i) => {
+    if (forcing) { send('app:update', { state: 'installing', version: i.version }); setTimeout(() => autoUpdater.quitAndInstall(true, true), 1200); }
+    else send('app:update', { state: 'ready', version: i.version });
+  });
+  autoUpdater.on('error', (e) => {
+    console.warn('auto-update:', e.message);
+    if (forcing) send('app:update', { state: 'error', message: e.message });
+  });
+  // sem internet na abertura: deixa usar (catálogo offline); com internet e versão nova: força
+  const check = (force) => { forcing = force; return autoUpdater.checkForUpdates().catch(() => { forcing = false; }); };
+  ipcMain.handle('app:retryUpdate', () => check(true));
+  win.webContents.once('did-finish-load', () => setTimeout(() => check(true), 1500));
+  setInterval(() => check(false), 4 * 3600e3);
 }
 app.on('window-all-closed', () => app.quit());
 
@@ -295,6 +310,53 @@ const preferExe = (files, hints = []) => {
   return null;
 };
 
+// roda um programa e devolve { code, out } (sem janela de console)
+function run(cmd, args, opts = {}) {
+  return new Promise((resolve) => {
+    let out = '';
+    let child;
+    try { child = spawn(cmd, args, { windowsHide: true, ...opts }); } catch (e) { return resolve({ code: -1, out: e.message }); }
+    child.stdout?.on('data', (d) => { out += d; });
+    child.stderr?.on('data', (d) => { out += d; });
+    child.on('error', (e) => resolve({ code: -1, out: e.message }));
+    child.on('close', (code) => resolve({ code, out }));
+  });
+}
+
+// 7z, rar e tar.*: o tar.exe do Windows (libarchive) abre tudo; o 7-Zip embutido fica de reserva
+async function extractArchive(file, dir) {
+  if (/\.zip$/i.test(file)) return require('extract-zip')(file, { dir });
+  const tar = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'tar.exe');
+  if (process.platform === 'win32' && fs.existsSync(tar)) {
+    const r = await run(tar, ['-xf', file, '-C', dir]);
+    if (r.code === 0) return;
+    console.warn('tar falhou, tentando 7-Zip:', r.out.slice(-300));
+  }
+  let bin;
+  try { bin = require('7zip-bin').path7za.replace('app.asar', 'app.asar.unpacked'); } catch { bin = null; }
+  if (bin && fs.existsSync(bin)) {
+    const r = await run(bin, ['x', file, `-o${dir}`, '-y']);
+    if (r.code === 0) return;
+    throw new Error(`não consegui extrair ${path.basename(file)} (${r.out.trim().split(/\r?\n/).pop() || r.code})`);
+  }
+  throw new Error(`não consegui extrair ${path.basename(file)}: abra a pasta do jogo e extraia manualmente`);
+}
+
+// instalador (NSIS, Inno Setup, MSI) se reconhece pelo nome ou pelas assinaturas dentro do .exe
+async function isInstallerExe(file) {
+  if (/\.msi$/i.test(file) || isSetupName(path.basename(file))) return true;
+  if (!/\.exe$/i.test(file)) return false;
+  let fh;
+  try {
+    fh = await fsp.open(file, 'r');
+    const { size } = await fh.stat();
+    const buf = Buffer.alloc(Math.min(size, 8 * 1024 * 1024));
+    await fh.read(buf, 0, buf.length, 0);
+    const s = buf.toString('latin1');
+    return /Nullsoft\.NSIS\.exehead|NullsoftInst|Inno Setup Setup Data|InnoSetupLdrWindow|InstallShield|WiX Toolset|Squirrel/.test(s);
+  } catch { return false; } finally { await fh?.close(); }
+}
+
 ipcMain.handle('game:install', async (_e, { gameId, title, repo, asset, tag, exeHint }) => {
   if (active.has(gameId)) return { ok: false, error: 'Já está baixando.' };
   const controller = new AbortController();
@@ -306,24 +368,29 @@ ipcMain.handle('game:install', async (_e, { gameId, title, repo, asset, tag, exe
     send('download:progress', { gameId, phase: 'start', total: asset.size || 0, received: 0 });
     await downloadFile(asset.url, tmp, gameId, controller);
     const lower = asset.name.toLowerCase();
-    let exe = null;
+    let exe = null, installer = null;
     await fsp.mkdir(dir, { recursive: true });
-    if (lower.endsWith('.zip')) {
+    if (/\.(zip|7z|rar|tar\.\w+|tgz)$/.test(lower)) {
       send('download:progress', { gameId, phase: 'extract' });
-      const extract = require('extract-zip');
-      await extract(tmp, { dir: dir });
+      await extractArchive(tmp, dir);
       await fsp.rm(tmp, { force: true });
     } else {
       const finalPath = path.join(dir, asset.name);
       await fsp.rename(tmp, finalPath).catch(async () => { await fsp.copyFile(tmp, finalPath); await fsp.rm(tmp, { force: true }); });
-      if (lower.endsWith('.exe') || lower.endsWith('.appimage')) exe = finalPath;
+      if (lower.endsWith('.exe') || lower.endsWith('.msi') || lower.endsWith('.appimage')) exe = finalPath;
+      // instalador: o Jogar roda ele uma vez e depois passa a abrir o jogo instalado
+      if (process.platform === 'win32' && await isInstallerExe(finalPath)) { installer = finalPath; exe = null; }
+      // .exe solto que precisa de DLLs publicadas separadas na mesma release
+      for (const c of asset.companions || []) {
+        await downloadFile(c.url, path.join(dir, c.name), gameId, controller).catch((err) => console.warn('dll', c.name, err.message));
+      }
     }
-    if (!exe) {
+    if (!exe && !installer) {
       const files = await walkFiles(dir);
       exe = preferExe(files, exeHint) || rankExecutables(files, { repo: repo || '', title, platform: process.platform })[0] || null;
     }
     const installed = getInstalled();
-    installed[gameId] = { title, repo, tag, dir, exe, exeHint: exeHint || null, asset: asset.name, installedAt: new Date().toISOString() };
+    installed[gameId] = { title, repo, tag, dir, exe, installer, exeHint: exeHint || null, asset: asset.name, installedAt: new Date().toISOString() };
     writeJson(INSTALLED_FILE, installed);
     send('download:progress', { gameId, phase: 'done', exe, dir });
     return { ok: true, exe, dir };
@@ -347,6 +414,73 @@ ipcMain.handle('game:installed', () => {
   if (changed) writeJson(INSTALLED_FILE, installed);
   return installed;
 });
+
+// Atalhos (.lnk) criados depois de `since` na Área de Trabalho e no Menu Iniciar → caminho do .exe de cada um
+async function newShortcutTargets(since) {
+  const dirs = [
+    app.getPath('desktop'),
+    path.join(process.env.PUBLIC || 'C:\\Users\\Public', 'Desktop'),
+    path.join(app.getPath('appData'), 'Microsoft', 'Windows', 'Start Menu', 'Programs'),
+    path.join(process.env.ProgramData || 'C:\\ProgramData', 'Microsoft', 'Windows', 'Start Menu', 'Programs'),
+  ];
+  const lnks = [];
+  for (const [i, d] of dirs.entries()) {
+    // Área de Trabalho: só o nível de cima (pode ter pastas enormes); Menu Iniciar: subpastas também
+    const files = i < 2 ? (await fsp.readdir(d).catch(() => [])).map((n) => path.join(d, n)) : await walkFiles(d, 2);
+    for (const f of files) {
+      if (!/\.lnk$/i.test(f)) continue;
+      const st = await fsp.stat(f).catch(() => null);
+      if (st && Math.max(st.mtimeMs, st.birthtimeMs) >= since - 5000) lnks.push(f);
+    }
+  }
+  const targets = [];
+  for (const l of lnks) {
+    try { const t = shell.readShortcutLink(l).target; if (t && /\.exe$/i.test(t) && fs.existsSync(t)) targets.push(t); } catch { /* atalho sem alvo */ }
+  }
+  return [...new Set(targets)];
+}
+
+// Jogo que vem como instalador: roda o instalador uma vez (com UAC, se ele pedir), acha o .exe que ele
+// instalou pelo atalho criado e guarda; daí em diante o Jogar abre o jogo direto.
+async function runInstaller(gameId, info) {
+  if (active.has(gameId)) return { ok: false, error: 'O instalador já está aberto.' };
+  if (!fs.existsSync(info.installer)) return { ok: false, error: 'O instalador foi apagado. Desinstale e instale de novo.' };
+  active.set(gameId, { controller: new AbortController() });
+  send('download:progress', { gameId, phase: 'setup' });
+  const since = Date.now();
+  try {
+    // Start-Process passa pelo UAC quando o instalador pede administrador (spawn direto falharia)
+    const q = (s) => `'${s.replace(/'/g, "''")}'`;
+    const ps = /\.msi$/i.test(info.installer)
+      ? `Start-Process msiexec.exe -ArgumentList '/i',${q(`"${info.installer}"`)} -Wait`
+      : `Start-Process -FilePath ${q(info.installer)} -WorkingDirectory ${q(path.dirname(info.installer))} -Wait`;
+    const r = await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps]);
+    if (r.code !== 0 && /cancel/i.test(r.out)) return { ok: false, error: 'Instalação cancelada.' };
+    let targets = (await newShortcutTargets(since)).filter((t) => !/unins|uninstall|setup|install/i.test(path.basename(t)));
+    targets = rankExecutables(targets, { repo: info.repo || '', title: info.title, platform: 'win32' });
+    let exe = targets[0];
+    if (!exe) {
+      const pick = await dialog.showOpenDialog(win, {
+        title: `Onde ficou o ${info.title}? Escolha o .exe do jogo instalado`,
+        defaultPath: process.env.ProgramFiles || 'C:\\Program Files',
+        properties: ['openFile'], filters: [{ name: 'Executável', extensions: ['exe'] }],
+      });
+      if (pick.canceled || !pick.filePaths[0]) return { ok: false, error: 'Não achei o jogo instalado. Use "Escolher executável" pra apontar o .exe.' };
+      exe = pick.filePaths[0];
+    }
+    const installed = getInstalled();
+    if (installed[gameId]) { installed[gameId].exe = exe; writeJson(INSTALLED_FILE, installed); }
+    send('toast', { type: 'ok', text: `${info.title} instalado. Abrindo…` });
+    const child = spawn(exe, [], { cwd: path.dirname(exe), detached: true, stdio: 'ignore' });
+    child.on('error', (err) => send('toast', { type: 'error', text: `Não abriu: ${err.message}` }));
+    child.unref();
+    if (installed[gameId]) { installed[gameId].lastPlayed = new Date().toISOString(); writeJson(INSTALLED_FILE, installed); }
+    return { ok: true };
+  } finally {
+    active.delete(gameId);
+    send('download:progress', { gameId, phase: 'done', setup: true });
+  }
+}
 
 // WiiCompiled (Mario Kart Wii) não tem janela: o Setup é uma linha de comando que compila o jogo a
 // partir da imagem do disco do usuário (--silent --game) e depois abre com --launch-base.
@@ -441,6 +575,7 @@ ipcMain.handle('game:launch', async (_e, gameId) => {
   const info = getInstalled()[gameId];
   if (!info) return { ok: false, error: 'Jogo não instalado.' };
   if (process.platform === 'win32' && isWiiCompiledSetup(info)) return launchWiiCompiled(gameId, info);
+  if (process.platform === 'win32' && info.installer && (!info.exe || !fs.existsSync(info.exe))) return runInstaller(gameId, info);
   let exe = info.exe;
   if (!exe || !fs.existsSync(exe)) {
     const files = await walkFiles(info.dir);

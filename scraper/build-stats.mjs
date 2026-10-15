@@ -6,6 +6,10 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+
+// mesma escolha de arquivo do app: repo sem nada pra Windows não conta como instalável
+const { pickAsset } = createRequire(import.meta.url)('../src/main/assets.js');
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CATALOG = path.join(ROOT, 'catalog', 'catalog.json');
@@ -43,6 +47,7 @@ for (const g of catalog.games) {
 console.log(`> contando downloads de ${targets.length} jogos`);
 
 const totals = {};
+const winOk = new Map(); // repo → tem arquivo instalável no Windows na última release
 let next = 0, asked = 0;
 await Promise.all(Array.from({ length: 6 }, async () => {
   while (next < targets.length) {
@@ -55,6 +60,8 @@ await Promise.all(Array.from({ length: 6 }, async () => {
       if (!Array.isArray(rel)) continue;
       ok = true;
       for (const r of rel) for (const a of r.assets || []) if (!/\.(sha\d+|sig|asc|txt|json|md)$/i.test(a.name)) sum += a.download_count || 0;
+      const latest = rel.filter((r) => !r.draft && !r.prerelease)[0] || rel[0];
+      winOk.set(repo.toLowerCase(), !!(latest && pickAsset(latest.assets.map((a) => ({ name: a.name, size: a.size })), 'win32')));
     }
     // sem resposta: mantém o último número conhecido
     totals[t.id] = ok ? sum : hist[prevDay]?.[t.id] ?? null;
@@ -88,4 +95,20 @@ const out = {
 };
 await fs.writeFile(OUT, JSON.stringify(out));
 await fs.writeFile(HISTORY, JSON.stringify(hist));
+
+// marca no catálogo as formas de instalar sem arquivo pra Windows (ex.: release só com .vsix, AppImage ou
+// ferramenta de compilação) e tira o "jogável" de quem não tem nenhuma outra forma de jogar
+let semWin = 0, naoJogavel = 0;
+for (const g of catalog.games) {
+  for (const w of g.ways) {
+    if (w.kind !== 'install' || w.direct) continue;
+    const ok = winOk.get(String(repoOf(w.repo || w.url)).toLowerCase());
+    if (ok === false) { w.noWindows = true; semWin++; } else if (ok === true) delete w.noWindows;
+  }
+  const canPlay = g.ways.some((w) => (w.kind === 'install' && !w.noWindows) || w.kind === 'files' || (w.kind === 'browser' && w.alive !== false));
+  if (g.playable && !canPlay) { g.playable = false; naoJogavel++; }
+}
+if (catalog.counts) catalog.counts.playable = catalog.games.filter((g) => g.playable).length;
+await fs.writeFile(CATALOG, JSON.stringify(catalog));
+console.log(`Sem Windows: ${semWin} formas de instalar; ${naoJogavel} jogos deixaram de contar como jogáveis`);
 console.log(`Downloads: ${Object.keys(games).length} jogos, ${asked} consultas → ${path.relative(ROOT, OUT)}`);

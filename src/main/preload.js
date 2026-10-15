@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld('hydra', {
   pickDir: invoke('settings:pickDir'),
   open: invoke('shell:open'),
   info: invoke('app:info'),
+  retryUpdate: invoke('app:retryUpdate'),
   onProgress: (fn) => ipcRenderer.on('download:progress', (_e, p) => fn(p)),
   onUpdate: (fn) => ipcRenderer.on('app:update', (_e, p) => fn(p)),
   onToast: (fn) => ipcRenderer.on('toast', (_e, p) => fn(p)),

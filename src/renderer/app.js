@@ -352,7 +352,9 @@ function reqModal(g, r) {
 document.addEventListener('click', (e) => { const h = e.target.closest('code.hash'); if (h) navigator.clipboard.writeText(h.textContent).then(() => toast('Hash copiado.', 'ok')); });
 
 function primaryInstallWay(g) {
-  return g.ways.find((w) => w.kind === 'install' && w.direct) || g.ways.find((w) => w.kind === 'install' && repoOf(w.repo || w.url)) || null;
+  // prefere o projeto que publica arquivo pra Windows (noWindows vem do build-stats)
+  const gh = g.ways.filter((w) => w.kind === 'install' && repoOf(w.repo || w.url));
+  return g.ways.find((w) => w.kind === 'install' && w.direct) || gh.find((w) => !w.noWindows) || gh[0] || null;
 }
 function pageGame(id) {
   const g = G(id);
@@ -362,7 +364,9 @@ function pageGame(id) {
   const browser = g.ways.find((w) => w.kind === 'browser' && w.alive !== false);
   const deadBrowser = !browser && g.ways.some((w) => w.kind === 'browser');
   const req = gameReq(g, iw);
-  const needsRom = req ? reqNeedsFile(req) : g.ways.some((w) => ['rom', 'files', 'game'].includes(w.needs)) || g.ways.some((w) => (w.steps || []).some((s) => /\b(rom|iso|disc image|your own copy|game files|dump)\b/i.test(s)));
+  // sem leitura conclusiva do README: jogo de console quase sempre pede a ROM/ISO original
+  const guessRom = g.ways.some((w) => ['rom', 'files', 'game'].includes(w.needs)) || g.ways.some((w) => (w.steps || []).some((s) => /\b(rom|iso|disc image|your own copy|game files|dump)\b/i.test(s))) || g.platforms.some((p) => !['pc', 'dos', 'multiple-platforms'].includes(p));
+  const needsRom = req && req.precisa !== 'incerto' ? reqNeedsFile(req) : guessRom;
   const stepsWay = g.ways.find((w) => w.steps?.length && w.kind === 'install') || g.ways.find((w) => w.steps?.length);
   const desc = g.descriptionPt || g.description;
   const methods = [...new Set(g.projects.map((p) => METHOD[p.method] || p.method).filter(Boolean))];
@@ -414,7 +418,7 @@ function pageGame(id) {
       ${sec('Antes de começar')}
       ${req && needsRom ? reqHtml(req, g) : ''}
       ${req?.precisa === 'nada' ? `<div class="callout">${icon('check')}<p><b>Não precisa de ROM.</b> Segundo o projeto, ele já vem pronto pra jogar.</p></div>` : ''}
-      ${!req && needsRom ? `<div class="callout warn">${icon('cartridge')}<p><b>Você precisa da sua cópia do jogo.</b> O HydraHub instala o recomp, mas não fornece ROM nem arquivos do jogo. Veja <a href="#/tutorial/dump-rom">como fazer o dump do seu cartucho ou disco</a>.</p></div>` : ''}
+      ${(!req || req.precisa === 'incerto') && needsRom ? `<div class="callout warn">${icon('cartridge')}<p><b>Você provavelmente precisa da sua cópia do jogo${g.platforms[0] && !['pc', 'dos'].includes(g.platforms[0]) ? ` de ${esc(platName(g.platforms[0]))}` : ''}.</b> A documentação do projeto não diz exatamente qual arquivo (região, versão); na primeira vez que abrir, o próprio jogo costuma pedir. O HydraHub instala o recomp, mas não fornece ROM nem arquivos do jogo. Veja <a href="#/tutorial/dump-rom">como fazer o dump do seu cartucho ou disco</a>.</p></div>` : ''}
       ${iw && !iw.direct ? `<div class="callout">${icon('info')}<p><b>Requisitos:</b> placa de vídeo com Vulkan ou Direct3D 12 e o Visual C++ Redistributable. <a href="#/tutorial/requisitos">Veja o guia de preparação do PC</a>.</p></div>` : ''}
       ${deadBrowser ? `<div class="callout warn off">${icon('alert')}<p><b>Versão de navegador fora do ar.</b> No último teste (${fmtDate(g.ways.find((w) => w.kind === 'browser').checkedAt)}) os links de navegador deste jogo não responderam. O HydraHub testa de novo todo dia.</p></div>` : ''}
       ${g.ways.filter((w) => w.externalHost).map((w) => `<div class="callout warn">${icon('alert')}<p><b>Roda num servidor de terceiros.</b> A versão de navegador de ${esc(w.project || 'este port')} carrega de <code>${esc(w.externalHost)}</code>, que não é controlado pelo HydraHub nem pelo site que lista o jogo. Pode ficar lento ou sair do ar. Nunca instale nada que essa página pedir.</p></div>`).join('')}
@@ -562,7 +566,7 @@ function drawProgress(g, d) {
   const actions = $('#actions');
   if (!actions || location.hash !== `#/jogo/${g.id}`) return;
   const pct = d.total ? Math.min(100, (d.received / d.total) * 100) : 0;
-  const label = d.phase === 'build' ? `Compilando o jogo (só na 1ª vez): ${esc(d.message || '')}` : d.phase === 'extract' ? 'Extraindo arquivos…' : d.phase === 'start' ? 'Iniciando download…' : `${fmtBytes(d.received)} de ${fmtBytes(d.total)}${d.speed ? ` · ${fmtBytes(d.speed)}/s` : ''}`;
+  const label = d.phase === 'setup' ? 'Instalador aberto: siga as janelas dele. Quando terminar, o HydraHub abre o jogo.' : d.phase === 'build' ? `Compilando o jogo (só na 1ª vez): ${esc(d.message || '')}` : d.phase === 'extract' ? 'Extraindo arquivos…' : d.phase === 'start' ? 'Iniciando download…' : `${fmtBytes(d.received)} de ${fmtBytes(d.total)}${d.speed ? ` · ${fmtBytes(d.speed)}/s` : ''}`;
   actions.innerHTML = `<div class="progress"><div class="track"><div class="fill ${d.phase === 'extract' || !d.total ? 'indet' : ''}" style="width:${pct}%"></div></div><div class="meta"><span>${label}</span><span>${d.total && (d.phase === 'download' || d.phase === 'build') ? `${pct.toFixed(0)}%` : ''}</span></div></div>
     <button class="btn small" id="btn-cancel">${icon('x')}Cancelar</button>`;
   $('#btn-cancel').addEventListener('click', () => window.hydra.cancel(g.id));
@@ -575,7 +579,7 @@ window.hydra.onProgress(async (p) => {
   if (p.phase === 'done' || p.phase === 'error' || p.phase === 'cancelled') {
     state.downloads.delete(p.gameId);
     state.installed = await window.hydra.installed();
-    if (p.phase === 'done') toast(p.built ? `${g?.title || 'Jogo'} compilado! Abrindo…` : `${g?.title || 'Jogo'} instalado! Clique em Jogar.`, 'ok', 6000);
+    if (p.phase === 'done' && !p.setup) toast(p.built ? `${g?.title || 'Jogo'} compilado! Abrindo…` : `${g?.title || 'Jogo'} instalado! Clique em Jogar.`, 'ok', 6000);
     if (p.phase === 'cancelled') toast('Download cancelado.', 'info');
     if (location.hash === `#/jogo/${p.gameId}`) route();
     else renderNav((location.hash.split('/')[1]) || 'inicio');
@@ -594,7 +598,7 @@ function drawDownloadsPanel() {
   const items = [...state.downloads.entries()];
   $('#downloads-panel').innerHTML = `<h4>Downloads</h4>${items.length ? items.map(([id, d]) => {
     const pct = d.total ? Math.min(100, (d.received / d.total) * 100) : 0;
-    return `<div class="dl-item">${d.cover ? `<img src="${esc(d.cover)}">` : '<img>'}<div style="flex:1;min-width:0"><div class="t">${esc(d.title)}</div><div class="progress"><div class="track"><div class="fill ${d.phase !== 'download' && d.phase !== 'build' ? 'indet' : ''}" style="width:${pct}%"></div></div><div class="meta"><span>${d.phase === 'extract' ? 'Extraindo…' : d.phase === 'build' ? `Compilando… ${pct.toFixed(0)}%` : `${fmtBytes(d.received)} / ${fmtBytes(d.total)}`}</span><a href="#/jogo/${id}">ver</a></div></div></div></div>`;
+    return `<div class="dl-item">${d.cover ? `<img src="${esc(d.cover)}">` : '<img>'}<div style="flex:1;min-width:0"><div class="t">${esc(d.title)}</div><div class="progress"><div class="track"><div class="fill ${d.phase !== 'download' && d.phase !== 'build' ? 'indet' : ''}" style="width:${pct}%"></div></div><div class="meta"><span>${d.phase === 'extract' ? 'Extraindo…' : d.phase === 'setup' ? 'Instalador aberto…' : d.phase === 'build' ? `Compilando… ${pct.toFixed(0)}%` : `${fmtBytes(d.received)} / ${fmtBytes(d.total)}`}</span><a href="#/jogo/${id}">ver</a></div></div></div></div>`;
   }).join('') : '<p class="muted" style="margin:0">Nenhum download em andamento.</p>'}`;
 }
 $('#btn-downloads').addEventListener('click', () => { const p = $('#downloads-panel'); p.hidden = !p.hidden; if (!p.hidden) drawDownloadsPanel(); });
@@ -931,7 +935,34 @@ async function autoUpdateGames() {
     if (r.ok) { state.installed = await window.hydra.installed(); toast(`${inst.title} atualizado para ${rel.latest.tag}.`, 'ok'); }
   }
 }
+// atualização obrigatória: tela que cobre o app até a versão nova instalar e reiniciar
+function updateLock(u) {
+  let el = $('#update-lock');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'update-lock';
+    el.className = 'modal-bg';
+    el.innerHTML = `<div class="modal update-lock"><img src="assets/logo-128.png" alt=""><h3>Atualizando o HydraHub</h3><p class="muted" data-msg></p>
+      <div class="progress"><div class="track"><div class="fill indet" data-fill style="width:0%"></div></div><div class="meta"><span data-meta>Baixando…</span><span data-pct></span></div></div>
+      <div class="modal-actions" data-retry hidden><button class="btn primary">${icon('refresh')}Tentar de novo</button></div></div>`;
+    el.querySelector('[data-retry] button').addEventListener('click', () => { el.querySelector('[data-retry]').hidden = true; window.hydra.retryUpdate(); });
+    document.body.append(el);
+  }
+  const set = (sel, v) => { el.querySelector(sel).textContent = v; };
+  const fill = el.querySelector('[data-fill]');
+  if (u.version) set('[data-msg]', `Saiu a versão ${u.version}. Ela é obrigatória: o app reinicia sozinho quando terminar.`);
+  if (u.state === 'progress') {
+    fill.classList.remove('indet'); fill.style.width = `${u.percent || 0}%`;
+    set('[data-pct]', `${(u.percent || 0).toFixed(0)}%`); set('[data-meta]', u.speed ? `Baixando · ${fmtBytes(u.speed)}/s` : 'Baixando…');
+  }
+  if (u.state === 'installing') { fill.classList.add('indet'); set('[data-meta]', 'Instalando e reiniciando…'); set('[data-pct]', ''); }
+  if (u.state === 'error') {
+    set('[data-meta]', 'Não consegui baixar a atualização. Confira a internet e tente de novo.'); set('[data-pct]', '');
+    el.querySelector('[data-retry]').hidden = false;
+  }
+}
 window.hydra.onUpdate?.((u) => {
+  if (['forcing', 'progress', 'installing', 'error'].includes(u.state)) return updateLock(u);
   if (u.state === 'available') toast(`Nova versão do HydraHub (${u.version}) baixando em segundo plano…`, 'info', 6000);
   if (u.state === 'ready') toast(`HydraHub ${u.version} pronto: a atualização entra quando você fechar o app.`, 'ok', 9000);
 });

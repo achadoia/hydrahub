@@ -388,6 +388,14 @@ function runWiiCompiledBuild(gameId, exe, image) {
 
 async function launchWiiCompiled(gameId, info) {
   const exe = info.exe && fs.existsSync(info.exe) ? info.exe : path.join(info.dir, info.asset);
+  if (!fs.existsSync(exe)) {
+    // o Setup é quem compila E abre o jogo; se foi apagado, volta pro botão Instalar
+    const installed = getInstalled();
+    delete installed[gameId];
+    writeJson(INSTALLED_FILE, installed);
+    send('download:progress', { gameId, phase: 'error' });
+    return { ok: false, error: `O ${info.asset || 'WiiCompiled-Setup.exe'} foi apagado, e é ele que compila e abre o jogo. Clique em Instalar de novo.` };
+  }
   if (!info.built) {
     if (active.has(gameId)) return { ok: false, error: 'Já está compilando.' };
     const r = await dialog.showOpenDialog(win, {

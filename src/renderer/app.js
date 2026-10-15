@@ -97,6 +97,12 @@ function videoBlock(v) {
     </div></div>`;
 }
 
+// gameplay hospedado no achadoia.com (campo `embed` do catálogo), roda dentro do app
+function embedBlock(g) {
+  if (!g?.embed?.url) return '';
+  return `<div class="video embed"><iframe src="${esc(g.embed.url)}" title="${esc(g.embed.title || g.title)}" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>`;
+}
+
 function toast(text, type = 'info', ms = 4200) {
   const el = document.createElement('div');
   el.className = `toast ${type}`;
@@ -156,6 +162,7 @@ function pageHome() {
       </div>
       <div class="surprise-bar card"><div><b>Não sabe o que jogar ou testar?</b><span>A gente escolhe um jogo ou repositório pra você.</span></div>${surpriseBtn('games', 'Jogo surpresa')}${surpriseBtn('repos', 'Repo surpresa')}</div>
       ${rankingsSection()}
+      ${state.games.filter((g) => g.embed?.url && g.featured).slice(0, 1).map((g) => `<div class="section-head"><h2>${esc(g.embed.title || `Rodando agora: ${g.title}`)}</h2><a href="#/jogo/${g.id}">Ver o jogo ${icon('arrow')}</a></div>${embedBlock(g)}`).join('')}
       <div class="section-head"><h2>Jogos Recompilados Recentes</h2><a href="#/jogos?sort=recent">Ver todos ${icon('arrow')}</a></div>
       <div class="row-scroll">${recentGames().map((g) => cover(g)).join('')}</div>
       <div class="section-head"><h2>Mais populares</h2><a href="#/jogos">Ver todos ${icon('arrow')}</a></div>
@@ -526,6 +533,7 @@ function pageGame(id) {
       ${sec('Passo a passo')}
       ${stepsHtml(stepsWay || iw || browser)}
       ${stepsWay?.steps?.length ? `<p class="muted" style="font-size:12px">Passos tirados da documentação oficial do projeto (via recomp.gg) e traduzidos. O texto original aparece em cinza.</p>` : ''}
+      ${g.embed?.url ? `${sec(g.embed.title || 'Gameplay')}${embedBlock(g)}` : ''}
       ${g.videos.length ? `${sec('Vídeos')}${g.videos.length > 1 ? `<div class="videos-2">${g.videos.slice(0, 4).map(videoBlock).join('')}</div>` : videoBlock(g.videos[0])}` : ''}
       ${g.screenshots.length ? `${sec('Imagens')}<div class="shots">${g.screenshots.map((u) => `<img src="${esc(u.replace('-1280', '-640'))}" loading="lazy" alt="">`).join('')}</div>` : ''}
       ${sec('Downloads e formas de jogar')}

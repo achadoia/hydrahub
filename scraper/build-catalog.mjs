@@ -425,6 +425,7 @@ function fromDestaques() {
       }],
       videos: [],
       noVideos: true,
+      embed: { url: 'https://achadoia.com/embed/kof98', title: "Gameplay: KOF '98 Comunidade Edition rodando no PC" },
       links: [{ name: 'GitHub do jogo', url: 'https://github.com/achadoia/kof98-comunidade-edition' }, { name: 'Releases (baixar o EXE)', url: 'https://github.com/achadoia/kof98-comunidade-edition/releases/latest' }, { name: 'WhatsApp da comunidade', url: 'https://wa.me/5521969568854' }],
     },
     {

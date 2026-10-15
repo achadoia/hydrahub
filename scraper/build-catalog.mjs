@@ -407,7 +407,28 @@ function fromDestaques() {
   console.log('> destaques');
   return [
     {
-      title: 'God of War III Remastered', year: 2015, platforms: ['ps4'], genres: ['ação'], featured: 1,
+      title: "The King of Fighters '98 Ultimate Match Comunidade Edition", aliases: ["KOF 98 Comunidade Edition", "KOF '98 Anniversary Edition Comunidade", 'KOF98 Comunidade'], year: 2026, platforms: ['neo-geo'], genres: ['luta'], featured: 1,
+      cover: `${ASSETS}/kof98ce-cover.jpg`, backdrop: `${ASSETS}/kof98ce-backdrop.jpg`, screenshots: shots('kof98ce'),
+      description: "KOF '98 Anniversary Edition recompilado pra PC pela comunidade brasileira de KOF, num EXE só (abriu, funcionou). Homenagens aos streamers com nome e retrato novos (Terry Urameshi, Orochi Daimon, Ralfecinha, Chizurinho, Lau Yagami, Toma Saisyu), menu novo, sem lentidão, treino avançado com hitboxes, filtros CRT, controles remapeáveis, bugs do Anniversary corrigidos e balanceamento. Precisa da sua cópia do jogo (kof98ae2016.zip + neogeo.zip). Ideias e novos homenageados: WhatsApp (21) 96956-8854.",
+      projects: [{ name: 'kof98-comunidade-edition', repo: 'https://github.com/achadoia/kof98-comunidade-edition', method: 'recompilation', source: 'destaques' }],
+      ways: [{
+        kind: 'install', url: 'https://github.com/achadoia/kof98-comunidade-edition', repo: 'https://github.com/achadoia/kof98-comunidade-edition', needs: 'game', systems: ['windows'],
+        project: 'kof98-comunidade-edition', exeHint: ['KOF98-Comunidade-Edition.exe'], steps: [], source: 'destaques',
+        stepsFixedPt: [
+          "<b>Tenha a sua cópia do jogo</b>: <b>kof98ae2016.zip</b> (The King of Fighters '98 Anniversary Edition 2016, o conjunto <b>kof98ae</b> do FBNeo) e <b>neogeo.zip</b> (BIOS do Neo Geo, com neo-epo.bin, sfix, sm1 e 000-lo). Nenhum arquivo do jogo vem no projeto.",
+          '<b>Baixe o jogo</b>: clique em <b>Instalar</b> e o HydraHub baixa o KOF98-Comunidade-Edition.exe da release oficial. É um arquivo só, sem instalação.',
+          '<b>Coloque os dois zips</b> na mesma pasta do EXE (ou numa pasta <b>roms</b> ao lado). Use o botão <b>Abrir pasta</b>.',
+          '<b>Jogar</b>. Se o Windows reclamar, <b>Mais informações → Executar assim mesmo</b>. Setas + Z X C V no teclado, ou controle de Xbox direto; tudo muda no <b>F1</b>.',
+          '<b>F6</b> abre o treino avançado (hitboxes, gravação do adversário, estados). <b>Esc</b> no jogo volta pro menu.',
+          'Quer homenagem, golpe ou modo novo? Chama no WhatsApp <b>(21) 96956-8854</b>.',
+        ],
+      }],
+      videos: [],
+      noVideos: true,
+      links: [{ name: 'GitHub do jogo', url: 'https://github.com/achadoia/kof98-comunidade-edition' }, { name: 'Releases (baixar o EXE)', url: 'https://github.com/achadoia/kof98-comunidade-edition/releases/latest' }, { name: 'WhatsApp da comunidade', url: 'https://wa.me/5521969568854' }],
+    },
+    {
+      title: 'God of War III Remastered', year: 2015, platforms: ['ps4'], genres: ['ação'], featured: 2,
       cover: `${ASSETS}/gow3-cover.jpg`, backdrop: `${ASSETS}/gow3-backdrop.jpg`, screenshots: shots('gow3'),
       description: 'God of War III Remastered (PS4) rodando no PC sem emulador, em até 4K e 60 FPS ou mais. O código x86-64 original roda direto no processador com um runtime próprio, e os gráficos usam o núcleo de vídeo do shadPS4 (Vulkan). Jogável do começo ao fim, com patch de 240 FPS, launcher em português e menu dentro do jogo.',
       projects: [{ name: 'gow3_pc', repo: 'https://github.com/FelipePrado0/gow3_pc', method: 'recompilation', source: 'destaques' }],
@@ -427,7 +448,7 @@ function fromDestaques() {
       links: [{ name: 'GitHub do port (gow3_pc)', url: 'https://github.com/FelipePrado0/gow3_pc' }, { name: 'Releases no GitHub', url: 'https://github.com/FelipePrado0/gow3_pc/releases/latest' }, { name: 'Guia completo (Achado IA)', url: GUIA }],
     },
     {
-      title: 'Shadow of the Colossus Remake', aliases: ['Shadow of the Colossus PS4', 'SotC Remake'], year: 2018, platforms: ['ps4'], genres: ['aventura'], featured: 2,
+      title: 'Shadow of the Colossus Remake', aliases: ['Shadow of the Colossus PS4', 'SotC Remake'], year: 2018, platforms: ['ps4'], genres: ['aventura'], featured: 3,
       cover: `${ASSETS}/sotc-cover.jpg`, backdrop: `${ASSETS}/sotc-backdrop.jpg`, screenshots: shots('sotc'),
       description: 'O remake de Shadow of the Colossus feito pro PS4 (2018), rodando no PC. O jeito mais pronto hoje é o Pink-shadPS4, um fork do shadPS4 otimizado pra esse jogo, com launcher próprio. Também existe um port nativo de fã em andamento, com 60 FPS e saída em 4K: o guia do Achado IA mostra os dois caminhos.',
       projects: [{ name: 'Pink-shadPS4', repo: 'https://github.com/luizgustavs/Pink-shadPS4', method: 'emulator', role: 'runs', source: 'destaques' }],

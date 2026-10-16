@@ -15,7 +15,7 @@ const OS_WORDS = {
   other: [/android/, /\.apk$/, w('ios'), /\.ipa$/, /\.vpk$/, w('vita'), w('switch'), /\.nro$/, /\.nsp$/, w('3ds'), /\.cia$/, w('psp'), /wasm/, /emscripten/, w('web')],
 };
 const BAD = [/source/, w('src'), /symbols?/, /\.pdb/, w('pdb'), /debug/, /\.sha\d+$/, /\.sig$/, /\.asc$/, /checksum/, /sha\d*sums/, /toolchain/,
-  /\.(txt|json|md|html?|xml|svg|toml|ini|ya?ml|tsv|pb|whl|vsix|dll|bin|blockmap)$/];
+  /\.(txt|json|md|html?|xml|svg|toml|ini|ya?ml|tsv|pb|whl|vsix|dll|bin|blockmap|mp4|webm|mkv|mov|gif|png|jpe?g|webp)$/];
 // pacotes que acompanham o jogo mas não são o jogo
 const EXTRA = w('mods?|modding|kit|studio|patch|updater|payload|annotations|old|noavx2?|lobby|server|dedicated');
 // formatos que o HydraHub sabe instalar no Windows (zip/7z/rar/tar extraídos; exe/msi rodados)

@@ -615,7 +615,7 @@ async function renderInstallState(g, iw) {
   stateBox.innerHTML = inst ? installedInfo(inst) : `Última versão: <b style="color:var(--white)">${esc(latest.tag)}</b><br>${fmtDate(latest.publishedAt)}${best ? '' : '<br>Nenhum arquivo pronto pro seu sistema.'}`;
   box.innerHTML = `<div class="card way">
     <div class="way-head"><span class="tag ok">${icon('check')}Release oficial</span><h3>${esc(latest.name || latest.tag)}</h3><span class="spacer"></span><span class="tag">${fmtDate(latest.publishedAt)}</span></div>
-    <div class="assets">${latest.assets.map((a) => `<div class="asset ${best && a.url === best.url ? 'best' : ''}">${icon(best && a.url === best.url ? 'check' : 'download')}<span class="n">${esc(a.name)}</span><span class="s">${fmtBytes(a.size)}</span><a class="btn small ghost" href="${esc(a.url)}">Baixar</a></div>`).join('')}</div>
+    <div class="assets">${latest.assets.filter((a) => !/\.(mp4|webm|mkv|mov|gif|png|jpe?g|webp)$/i.test(a.name)).map((a) => `<div class="asset ${best && a.url === best.url ? 'best' : ''}">${icon(best && a.url === best.url ? 'check' : 'download')}<span class="n">${esc(a.name)}</span><span class="s">${fmtBytes(a.size)}</span><a class="btn small ghost" href="${esc(a.url)}">Baixar</a></div>`).join('')}</div>
     ${latest.body ? `<details style="margin-top:10px"><summary class="muted" style="cursor:pointer;font-size:13px">Notas da versão</summary><div class="release-notes">${esc(latest.body)}</div></details>` : ''}
   </div>`;
   bindInstallButtons(g, repo, latest, best, iw.exeHint);

@@ -481,7 +481,7 @@ function merge(sources) {
 
   const attach = (g, item) => {
     for (const p of item.platforms || []) if (p && !g.platforms.includes(p)) g.platforms.push(p);
-    for (const k of ['year', 'cover', 'backdrop', 'wiki', 'icon', 'category', 'noVideos', 'featured']) if (!g[k] && item[k]) g[k] = item[k];
+    for (const k of ['year', 'cover', 'backdrop', 'wiki', 'icon', 'category', 'noVideos', 'featured', 'embed']) if (!g[k] && item[k]) g[k] = item[k];
     // curadoria manda na arte e no texto do jogo em destaque
     if (item.featured) for (const k of ['cover', 'backdrop', 'description']) if (item[k]) g[k] = item[k];
     if (!g.description && item.description) g.description = item.description;

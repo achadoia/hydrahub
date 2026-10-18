@@ -98,6 +98,17 @@ function videoBlock(v) {
 }
 
 // gameplay hospedado no achadoia.com (campo `embed` do catálogo), roda dentro do app
+// Ficha copiada do AllRecomps (texto original em cinza embaixo da tradução)
+function fichaHtml(p) {
+  const f = p.ficha || {}, pt = p.fichaPt || {};
+  const rows = [['sobre', 'Sobre o projeto'], ['compatibilidade', 'Compatibilidade'], ['progresso', 'Progresso'], ['limitacoes', 'Limitações conhecidas'], ['comoComecar', 'Como começar'], ['notasPlataforma', 'Notas por plataforma']]
+    .filter(([k]) => f[k])
+    .map(([k, label]) => `<div class="kv ficha-row"><span>${label}</span><b>${esc(pt[k] || f[k])}${pt[k] ? `<span class="orig">${esc(f[k])}</span>` : ''}</b></div>`).join('');
+  const meta = [f.autor ? `Autor: ${esc(f.autor)}` : '', p.version ? `Versão registrada: ${esc(p.version)}` : '', f.ultimaRelease && f.ultimaRelease !== p.version ? `Última release: ${esc(f.ultimaRelease)}` : '', f.releaseVerificada ? `Release verificada: ${esc(f.releaseVerificada)}` : '', p.stage ? `Estágio: ${esc(p.stage)}` : '', f.conferidoEm ? `Conferido pelo AllRecomps em ${esc(f.conferidoEm)}` : ''].filter(Boolean);
+  const links = [f.docs ? `<a href="${esc(f.docs)}">${icon('book')}<span>Documentação oficial</span>${icon('external')}</a>` : '', f.releases ? `<a href="${esc(f.releases)}">${icon('download')}<span>Releases</span>${icon('external')}</a>` : '', f.url ? `<a href="${esc(f.url)}">${icon('link')}<span>Página no AllRecomps</span>${icon('external')}</a>` : ''].filter(Boolean).join('');
+  return `<div class="card ficha"><h4>${esc(p.name)}</h4>${rows}${meta.length ? `<p class="muted" style="font-size:12px">${meta.join(' · ')}</p>` : ''}<div class="link-list">${links}</div></div>`;
+}
+
 function embedBlock(g) {
   if (!g?.embed?.url) return '';
   return `<div class="video embed"><iframe src="${esc(g.embed.url)}" title="${esc(g.embed.title || g.title)}" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>`;
@@ -532,7 +543,8 @@ function pageGame(id) {
       ${systems.length ? `<p>Disponível para:${systems.map((s) => `<span class="tag">${esc(sysName[s] || s)}</span>`).join(' ')}</p>` : ''}
       ${sec('Passo a passo')}
       ${stepsHtml(stepsWay || iw || browser)}
-      ${stepsWay?.steps?.length ? `<p class="muted" style="font-size:12px">Passos tirados da documentação oficial do projeto (via recomp.gg) e traduzidos. O texto original aparece em cinza.</p>` : ''}
+      ${stepsWay?.steps?.length ? `<p class="muted" style="font-size:12px">Passos tirados da documentação oficial do projeto (via ${esc(stepsWay.source === 'allrecomps' ? 'AllRecomps' : 'recomp.gg')}) e traduzidos. O texto original aparece em cinza.</p>` : ''}
+      ${g.projects.some((p) => p.ficha) ? `${sec('Ficha do projeto (AllRecomps)')}${g.projects.filter((p) => p.ficha).slice(0, 4).map((p) => fichaHtml(p)).join('')}` : ''}
       ${g.embed?.url ? `${sec(g.embed.title || 'Gameplay')}${embedBlock(g)}` : ''}
       ${g.videos.length ? `${sec('Vídeos')}${g.videos.length > 1 ? `<div class="videos-2">${g.videos.slice(0, 4).map(videoBlock).join('')}</div>` : videoBlock(g.videos[0])}` : ''}
       ${g.screenshots.length ? `${sec('Imagens')}<div class="shots">${g.screenshots.map((u) => `<img src="${esc(u.replace('-1280', '-640'))}" loading="lazy" alt="">`).join('')}</div>` : ''}
@@ -547,6 +559,7 @@ function pageGame(id) {
       </div>
       <div class="card side-box"><h4>Links do projeto</h4><div class="link-list">
         ${[...new Map([...g.projects.filter((p) => p.repo).map((p) => [p.repo.toLowerCase(), { url: p.repo, name: p.name, ic: /github/.test(p.repo) ? 'github' : 'globe' }]), ...g.projects.filter((p) => p.home).map((p) => [p.home, { url: p.home, name: `${p.name} (site)`, ic: 'globe' }])]).values()].slice(0, 8).map((l) => `<a href="${esc(l.url)}">${icon(l.ic)}<span>${esc(l.name)}</span>${icon('external')}</a>`).join('')}
+        ${g.links.filter((l) => ['Documentação oficial', 'Releases no GitHub'].includes(l.name)).map((l) => `<a href="${esc(l.url)}">${icon(l.name.startsWith('Rel') ? 'download' : 'book')}<span>${esc(l.name)}</span>${icon('external')}</a>`).join('')}
         ${g.wiki ? `<a href="${esc(g.wiki)}">${icon('book')}<span>Wikipédia</span>${icon('external')}</a>` : ''}
       </div></div>
       <div class="card side-box"><h4>Fontes do catálogo</h4><div class="link-list">

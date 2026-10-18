@@ -210,21 +210,56 @@ async function fromAllRecomps() {
     const stage = (text.match(/Development stage\s+(.+?)\s+Source/) || [])[1] || '';
     const version = (text.match(/Recorded version\s+(\S+)/) || [])[1] || null;
     const name = (page?.name || '').replace(/\s+—\s+.*$/, '').replace(/\s*\([^)]*$/, '');
+    // Ficha completa do AllRecomps, copiada como está no site (cada bloco termina em "Source:")
+    const STOP = '\\s+(?:Source:|About this project|Compatibility|Development progress|Known limitations|Getting started|Catalog platform notes|Project at a glance|Some projects require)';
+    const section = (h) => {
+      const m = text.match(new RegExp(h + '\\s+([\\s\\S]{10,900}?)' + STOP));
+      const v = m ? m[1].replace(/\s+/g, ' ').trim() : null;
+      return v && !/^Not documented in the available sources\.?$/i.test(v) ? v : null;
+    };
+    // resumo = parágrafo logo abaixo do título (2ª ocorrência do nome completo da página)
+    const fullName = page?.name || '';
+    let resumo = null;
+    if (fullName) {
+      const m = text.match(new RegExp('→ [^/]+ / [A-Za-z -]+? ' + fullName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s+(.+?)\\s+(?:Release available|In development|Not documented|Pending review|Playable|Early access|Abandoned|Official documentation)'));
+      if (m && m[1].length > 20) resumo = m[1];
+    }
+    const ficha = {
+      resumo,
+      sobre: section('About this project'),
+      compatibilidade: section('Compatibility'),
+      progresso: section('Development progress'),
+      limitacoes: section('Known limitations'),
+      comoComecar: section('Getting started'),
+      notasPlataforma: (text.match(/Catalog platform notes\s+(.+?)\s+Sources checked/) || [])[1] || null,
+      autor: (text.match(/Listed author\s+(.+?)\s+Development stage/) || [])[1] || null,
+      ultimaRelease: (text.match(/latest non-prerelease GitHub release observed is (\S+?)\.?\s/) || [])[1] || null,
+      releaseVerificada: (text.match(/Public GitHub release checked: (\S+?)(?: \(prerelease\))?, published (\S+?)\./) || []).slice(1).join(' · ') || null,
+      conferidoEm: (text.match(/Sources checked\s+([A-Z][a-z]{2} \d{1,2}, \d{4})/) || [])[1] || null,
+      docs: hrefs.find((h) => /\/blob\/[^/]+\/README(?:\.md)?$/i.test(h) || /\/wiki\b/.test(h)) || null,
+      releases: hrefs.find((h) => /\/releases\/?$/.test(h)) || null,
+      url,
+    };
+    for (const k of Object.keys(ficha)) if (ficha[k] == null) delete ficha[k];
+    const extraLinks = [];
+    if (ficha.docs) extraLinks.push({ name: 'Documentação oficial', url: ficha.docs });
+    if (ficha.releases) extraLinks.push({ name: 'Releases no GitHub', url: ficha.releases });
     return {
       title: name, platforms: [normPlatform(consoleName)].filter(Boolean),
       cover: page?.primaryImageOfPage?.url || null,
-      description: quote,
+      description: quote || (ficha.resumo && !/project associated with/.test(ficha.resumo) ? ficha.resumo : ''),
       projects: [{
         name: page?.name || name, repo, method: (typeM?.[1] || '').toLowerCase() || null,
         systems: sys && sys !== 'Not documented' ? sys.split('·').map((x) => x.trim().toLowerCase()) : [],
-        stage, version, releasePage, source: 'allrecomps',
+        stage, version, releasePage, source: 'allrecomps', ficha,
       }],
       ways: repoKey(repo) && /release/i.test(stage) ? [{
-        kind: 'install', url: repo, repo, needs: /original game files/i.test(text) ? 'rom' : 'unknown',
+        kind: 'install', url: repo, repo, needs: /original game files|your own/i.test(text) ? 'rom' : 'unknown',
         systems: sys && sys !== 'Not documented' ? sys.split('·').map((x) => x.trim().toLowerCase()) : [],
-        project: name, release: version ? { tag: version, url: releasePage } : null, steps: [], source: 'allrecomps',
+        project: name, release: version ? { tag: version, url: releasePage } : null, steps: ficha.comoComecar ? [ficha.comoComecar] : [], source: 'allrecomps',
       }] : [],
       links: [{ name: 'AllRecomps', url }],
+      extraLinks,
     };
   });
   const out = pages.filter((p) => p && p.title);
@@ -547,7 +582,9 @@ async function translateSteps(games) {
   let cache = {};
   try { cache = JSON.parse(await fs.readFile(TR_CACHE, 'utf8')); } catch {}
   const key = process.env.GEMINI_API_KEY;
-  const texts = [...new Set(games.flatMap((g) => [g.description, ...g.ways.flatMap((w) => w.steps || [])]).filter(Boolean))];
+  const FICHA_KEYS = ['resumo', 'sobre', 'compatibilidade', 'progresso', 'limitacoes', 'comoComecar', 'notasPlataforma'];
+  const fichaTexts = games.flatMap((g) => g.projects.flatMap((p) => FICHA_KEYS.map((k) => p.ficha?.[k])));
+  const texts = [...new Set(games.flatMap((g) => [g.description, ...g.ways.flatMap((w) => w.steps || [])]).concat(fichaTexts).filter(Boolean))];
   const missing = texts.filter((t) => !cache[t]);
   if (key && missing.length) {
     console.log(`> traduzindo ${missing.length} textos pra pt-BR`);
@@ -571,6 +608,11 @@ async function translateSteps(games) {
   for (const g of games) {
     if (g.description) g.descriptionPt = g.featured ? g.description : cache[g.description] || null;
     for (const w of g.ways) if (w.steps?.length) w.stepsPt = w.steps.map((s) => cache[s] || null);
+    for (const p of g.projects) if (p.ficha) {
+      const pt = {};
+      for (const k of FICHA_KEYS) if (p.ficha[k] && cache[p.ficha[k]]) pt[k] = cache[p.ficha[k]];
+      if (Object.keys(pt).length) p.fichaPt = pt;
+    }
   }
 }
 

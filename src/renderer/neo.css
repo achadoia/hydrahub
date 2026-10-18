@@ -316,3 +316,13 @@ code { border: 2px solid var(--ink); background: var(--ink); color: var(--accent
 .rom-ok svg { color: #1b7a2c; } .rom-bad svg { color: #b4232f; }
 .modal [data-msg] .rom-ok, .modal [data-msg] .rom-bad { margin-top: 12px; padding: 10px 12px; border: 2px solid var(--ink); border-radius: 8px; background: var(--white, #fff); color: var(--ink); }
 .modal > p code, .modal [data-msg] code { word-break: break-all; }
+
+/* Ficha do AllRecomps na página do jogo */
+.card.ficha { margin: 12px 0 16px; padding: 16px; }
+.card.ficha h4 { margin: 0 0 10px; }
+.ficha-row { flex-direction: column; align-items: flex-start; gap: 4px; padding: 10px 0; border-bottom: 2px dashed var(--ink); }
+.ficha-row:last-of-type { border-bottom: 0; }
+.ficha-row span { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; font-weight: 900; }
+.ficha-row b { font-weight: 500; line-height: 1.5; }
+.ficha-row b .orig { display: block; color: #8a939e; font-size: 12px; margin-top: 4px; }
+.card.ficha .link-list { margin-top: 10px; }
